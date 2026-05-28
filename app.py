@@ -6,7 +6,7 @@ from view.settings import settings
 
 def main():
     initialize_app_state()
-
+    
     if(st.session_state['current_page'] == 0):
         dashboard()
     elif(st.session_state['current_page'] == 1):
