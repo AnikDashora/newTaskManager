@@ -1,6 +1,9 @@
 import os
-from datetime import datetime
+import streamlit as st
 import pandas as pd
+
+from datetime import datetime
+
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -8,16 +11,51 @@ from googleapiclient.discovery import build
 # =====================================================
 # GOOGLE AUTH
 # =====================================================
+
 def fetch_tasks_data():
+
     SCOPES = [
         "https://www.googleapis.com/auth/tasks.readonly"
     ]
 
+    # =================================================
+    # GOOGLE CLIENT CONFIG FROM STREAMLIT SECRETS
+    # =================================================
+
+    client_config = {
+
+        "installed": {
+
+            "client_id":
+            st.secrets["google"]["client_id"],
+
+            "project_id":
+            st.secrets["google"]["project_id"],
+
+            "auth_uri":
+            st.secrets["google"]["auth_uri"],
+
+            "token_uri":
+            st.secrets["google"]["token_uri"],
+
+            "auth_provider_x509_cert_url":
+            st.secrets["google"][
+                "auth_provider_x509_cert_url"
+            ],
+
+            "client_secret":
+            st.secrets["google"]["client_secret"],
+
+            "redirect_uris":
+            st.secrets["google"]["redirect_uris"]
+        }
+    }
+
     creds = None
 
-    # -----------------------------------------------------
-    # LOAD EXISTING TOKEN
-    # -----------------------------------------------------
+    # =================================================
+    # LOAD TOKEN
+    # =================================================
 
     if os.path.exists("token.json"):
 
@@ -26,26 +64,30 @@ def fetch_tasks_data():
             SCOPES
         )
 
-    # -----------------------------------------------------
-    # LOGIN IF TOKEN MISSING
-    # -----------------------------------------------------
+    # =================================================
+    # LOGIN
+    # =================================================
 
     if not creds or not creds.valid:
 
-        flow = InstalledAppFlow.from_client_secrets_file(
-            "credentials.json",
+        flow = InstalledAppFlow.from_client_config(
+            client_config,
             SCOPES
         )
 
-        creds = flow.run_local_server(port=0)
+        # ---------------------------------------------
+        # STREAMLIT CLOUD FRIENDLY
+        # ---------------------------------------------
+
+        creds = flow.run_console()
 
         with open("token.json", "w") as token:
 
             token.write(creds.to_json())
 
-    # =====================================================
-    # BUILD GOOGLE TASKS API
-    # =====================================================
+    # =================================================
+    # BUILD TASKS API
+    # =================================================
 
     tasks_service = build(
         "tasks",
@@ -53,33 +95,33 @@ def fetch_tasks_data():
         credentials=creds
     )
 
-    # =====================================================
+    # =================================================
     # STORAGE
-    # =====================================================
+    # =================================================
 
     task_data = []
 
     outcome_data = []
 
-    # =====================================================
+    # =================================================
     # FETCH TASK LISTS
-    # =====================================================
+    # =================================================
 
     tasklists = tasks_service.tasklists().list().execute()
 
-    # =====================================================
+    # =================================================
     # LOOP THROUGH TASK LISTS
-    # =====================================================
+    # =================================================
 
     for tasklist in tasklists.get("items", []):
 
         list_name = tasklist["title"]
 
-        # -------------------------------------------------
-        # ONLY ALLOW DATE FORMAT LISTS
+        # ---------------------------------------------
+        # ONLY DATE FORMAT LISTS
         # Example:
         # 28-May-2026
-        # -------------------------------------------------
+        # ---------------------------------------------
 
         try:
 
@@ -90,7 +132,6 @@ def fetch_tasks_data():
 
         except:
 
-            # Skip default Google lists
             continue
 
         # =================================================
@@ -108,7 +149,7 @@ def fetch_tasks_data():
         total_task = 0
 
         # =================================================
-        # LOOP THROUGH TASKS
+        # LOOP TASKS
         # =================================================
 
         for task in tasks.get("items", []):
@@ -126,7 +167,7 @@ def fetch_tasks_data():
             )
 
             # ---------------------------------------------
-            # STATUS CONVERSION
+            # STATUS
             # ---------------------------------------------
 
             if google_status == "completed":
@@ -158,7 +199,10 @@ def fetch_tasks_data():
 
             completion_percentage = round(
 
-                (total_completed_task / total_task) * 100,
+                (
+                    total_completed_task
+                    / total_task
+                ) * 100,
 
                 2
             )
@@ -212,65 +256,37 @@ def fetch_tasks_data():
     )
 
     # =====================================================
-    # SORT DATA BY DATE
+    # SORT DATE
     # =====================================================
 
-    task_df["date"] = pd.to_datetime(
-        task_df["date"],
-        format="%d-%m-%Y"
-    )
+    if not task_df.empty:
 
-    outcome_df["date"] = pd.to_datetime(
-        outcome_df["date"],
-        format="%d-%m-%Y"
-    )
+        task_df["date"] = pd.to_datetime(
+            task_df["date"],
+            format="%d-%m-%Y"
+        )
 
-    task_df = task_df.sort_values(
-        by="date"
-    )
+        task_df = task_df.sort_values(
+            by="date"
+        )
 
-    outcome_df = outcome_df.sort_values(
-        by="date"
-    )
+        task_df["date"] = task_df[
+            "date"
+        ].dt.strftime("%d-%m-%Y")
 
-    # =====================================================
-    # CONVERT DATE BACK TO STRING
-    # =====================================================
+    if not outcome_df.empty:
 
-    task_df["date"] = task_df["date"].dt.strftime(
-        "%d-%m-%Y"
-    )
+        outcome_df["date"] = pd.to_datetime(
+            outcome_df["date"],
+            format="%d-%m-%Y"
+        )
 
-    outcome_df["date"] = outcome_df["date"].dt.strftime(
-        "%d-%m-%Y"
-    )
+        outcome_df = outcome_df.sort_values(
+            by="date"
+        )
+
+        outcome_df["date"] = outcome_df[
+            "date"
+        ].dt.strftime("%d-%m-%Y")
 
     return task_df, outcome_df
-
-    # =====================================================
-    # DISPLAY
-    # =====================================================
-
-    # print("\n================ TASK DATA =================\n")
-
-    # print(task_df)
-
-    # print("\n================ OUTCOME DATA =================\n")
-
-    # print(outcome_df)
-
-    # =====================================================
-    # OPTIONAL CSV EXPORT
-    # =====================================================
-
-    # task_df.to_csv(
-    #     "task_data.csv",
-    #     index=False
-    # )
-
-    # outcome_df.to_csv(
-    #     "outcome_data.csv",
-    #     index=False
-    # )
-
-    # print("\nCSV files exported successfully ✅")
