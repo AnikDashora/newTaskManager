@@ -10,7 +10,7 @@ from googleapiclient.discovery import build
 # =====================================================
 def fetch_tasks_data():
     SCOPES = [
-        "https://www.googleapis.com/auth/tasks.readonly"
+        "https://www.googleapis.com/auth/tasks"
     ]
 
     creds = None
