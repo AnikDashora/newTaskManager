@@ -3,9 +3,7 @@ venv/
 env/
 
 # Secrets and Credentials
-credentials.json
-credential.json
+
 *.html
-token.json
-credentials.json
+
 .streamlit/secrets.toml
