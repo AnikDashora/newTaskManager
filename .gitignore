@@ -5,5 +5,4 @@ env/
 # Secrets and Credentials
 credentials.json
 credential.json
-token.json
 *.html
