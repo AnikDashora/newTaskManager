@@ -1,38 +1,51 @@
 import os
-import streamlit as st
-import pandas as pd
-
 from datetime import datetime
-
+import pandas as pd
+from google_auth_oauthlib.flow import InstalledAppFlow
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
 # =====================================================
-# FETCH TASK DATA
+# GOOGLE AUTH
 # =====================================================
-
 def fetch_tasks_data():
-
-    # =================================================
-    # GOOGLE SCOPES
-    # =================================================
-
     SCOPES = [
         "https://www.googleapis.com/auth/tasks.readonly"
     ]
 
-    # =================================================
-    # LOAD TOKEN
-    # =================================================
+    creds = None
 
-    creds = Credentials.from_authorized_user_file(
-        "token.json",
-        SCOPES
-    )
+    # -----------------------------------------------------
+    # LOAD EXISTING TOKEN
+    # -----------------------------------------------------
 
-    # =================================================
-    # BUILD TASKS API
-    # =================================================
+    if os.path.exists("token.json"):
+
+        creds = Credentials.from_authorized_user_file(
+            "token.json",
+            SCOPES
+        )
+
+    # -----------------------------------------------------
+    # LOGIN IF TOKEN MISSING
+    # -----------------------------------------------------
+
+    if not creds or not creds.valid:
+
+        flow = InstalledAppFlow.from_client_secrets_file(
+            "credentials.json",
+            SCOPES
+        )
+
+        creds = flow.run_local_server(port=0)
+
+        with open("token.json", "w") as token:
+
+            token.write(creds.to_json())
+
+    # =====================================================
+    # BUILD GOOGLE TASKS API
+    # =====================================================
 
     tasks_service = build(
         "tasks",
@@ -40,23 +53,23 @@ def fetch_tasks_data():
         credentials=creds
     )
 
-    # =================================================
+    # =====================================================
     # STORAGE
-    # =================================================
+    # =====================================================
 
     task_data = []
 
     outcome_data = []
 
-    # =================================================
+    # =====================================================
     # FETCH TASK LISTS
-    # =================================================
+    # =====================================================
 
     tasklists = tasks_service.tasklists().list().execute()
 
-    # =================================================
+    # =====================================================
     # LOOP THROUGH TASK LISTS
-    # =================================================
+    # =====================================================
 
     for tasklist in tasklists.get("items", []):
 
@@ -145,10 +158,7 @@ def fetch_tasks_data():
 
             completion_percentage = round(
 
-                (
-                    total_completed_task
-                    / total_task
-                ) * 100,
+                (total_completed_task / total_task) * 100,
 
                 2
             )
@@ -173,7 +183,7 @@ def fetch_tasks_data():
         ])
 
     # =====================================================
-    # CREATE TASK DATAFRAME
+    # CREATE DATAFRAMES
     # =====================================================
 
     task_df = pd.DataFrame(
@@ -187,10 +197,6 @@ def fetch_tasks_data():
             "status"
         ]
     )
-
-    # =====================================================
-    # CREATE OUTCOME DATAFRAME
-    # =====================================================
 
     outcome_df = pd.DataFrame(
 
@@ -206,72 +212,65 @@ def fetch_tasks_data():
     )
 
     # =====================================================
-    # HANDLE EMPTY DATAFRAMES
+    # SORT DATA BY DATE
     # =====================================================
 
-    if task_df.empty:
+    task_df["date"] = pd.to_datetime(
+        task_df["date"],
+        format="%d-%m-%Y"
+    )
 
-        task_df = pd.DataFrame(
-            columns=[
-                "date",
-                "task",
-                "status"
-            ]
-        )
+    outcome_df["date"] = pd.to_datetime(
+        outcome_df["date"],
+        format="%d-%m-%Y"
+    )
 
-    if outcome_df.empty:
+    task_df = task_df.sort_values(
+        by="date"
+    )
 
-        outcome_df = pd.DataFrame(
-            columns=[
-                "date",
-                "total_completed_task",
-                "total_task",
-                "completion_percentage"
-            ]
-        )
+    outcome_df = outcome_df.sort_values(
+        by="date"
+    )
 
     # =====================================================
-    # SORT TASK DATAFRAME
+    # CONVERT DATE BACK TO STRING
     # =====================================================
 
-    if not task_df.empty:
+    task_df["date"] = task_df["date"].dt.strftime(
+        "%d-%m-%Y"
+    )
 
-        task_df["date"] = pd.to_datetime(
-            task_df["date"],
-            format="%d-%m-%Y",
-            errors="coerce"
-        )
-
-        task_df = task_df.sort_values(
-            by="date"
-        )
-
-        task_df["date"] = task_df[
-            "date"
-        ].dt.strftime("%d-%m-%Y")
-
-    # =====================================================
-    # SORT OUTCOME DATAFRAME
-    # =====================================================
-
-    if not outcome_df.empty:
-
-        outcome_df["date"] = pd.to_datetime(
-            outcome_df["date"],
-            format="%d-%m-%Y",
-            errors="coerce"
-        )
-
-        outcome_df = outcome_df.sort_values(
-            by="date"
-        )
-
-        outcome_df["date"] = outcome_df[
-            "date"
-        ].dt.strftime("%d-%m-%Y")
-
-    # =====================================================
-    # RETURN DATA
-    # =====================================================
+    outcome_df["date"] = outcome_df["date"].dt.strftime(
+        "%d-%m-%Y"
+    )
 
     return task_df, outcome_df
+
+    # =====================================================
+    # DISPLAY
+    # =====================================================
+
+    # print("\n================ TASK DATA =================\n")
+
+    # print(task_df)
+
+    # print("\n================ OUTCOME DATA =================\n")
+
+    # print(outcome_df)
+
+    # =====================================================
+    # OPTIONAL CSV EXPORT
+    # =====================================================
+
+    # task_df.to_csv(
+    #     "task_data.csv",
+    #     index=False
+    # )
+
+    # outcome_df.to_csv(
+    #     "outcome_data.csv",
+    #     index=False
+    # )
+
+    # print("\nCSV files exported successfully ✅")
