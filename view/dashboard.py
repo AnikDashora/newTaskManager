@@ -4,6 +4,7 @@ import sys
 import random
 import pandas as pd
 import numpy as np
+
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(parent_dir)
 
@@ -11,6 +12,8 @@ from streamlit_echarts import st_echarts
 from datetime import datetime, timedelta, date
 
 from components.metrics import active_days_metric, completion_trend_metric,average_completion_metric, monthly_rate_metric, needs_attendtion_metric, todays_progress_metric,total_progress_metric, weekly_rate_metric,productivity_streak_metric
+from session_state.app_state import to_calendar, to_settings, to_tasks
+from services.tasks_service import fetch_tasks_data
 
 root_variable = [# 0 for light , 1 for dark
     """:root{
@@ -858,29 +861,7 @@ kpi_style = """
 
 def dashboard():
 
-    start_date = datetime(2026, 5, 28)
-
-    data = []
-
-    for i in range(90):
-        current_date = start_date - timedelta(days=i)
-
-        total_task = random.randint(0, 40)
-        total_completed_task = random.randint(0, total_task)
-
-        completion_percentage = round(
-            (total_completed_task / total_task) * 100, 2
-        ) if total_task > 0 else 0.0
-
-        data.append({
-            "date": current_date.strftime("%d-%m-%Y"),
-            "total_completed_task": total_completed_task,
-            "total_task": total_task,
-            "completion_percentage": completion_percentage
-        })
-
-    # Create DataFrame
-    df = pd.DataFrame(data)
+    task_df,output_df = fetch_tasks_data()
     # st.write(df)
     final_style = f"""
     <style>
@@ -937,7 +918,8 @@ def dashboard():
                     label = "",
                     key = "nav-button-5",
                     type = "tertiary",
-                    icon = ":material/instant_mix:"
+                    icon = ":material/instant_mix:",
+                    on_click=to_settings
                 )
 
             with st.container(key = "header-right"):
@@ -988,22 +970,23 @@ def dashboard():
 
         with st.container(key = "dashboard-grid"):
 
-            total_progress_metric(df)
-            average_completion_metric(df)
-            completion_trend_metric(df)
-            active_days_metric(df)
+            todays_progress_metric(output_df)
+            completion_trend_metric(output_df)
+            average_completion_metric(output_df)
+            total_progress_metric(output_df)
+
+            productivity_streak_metric(output_df,1)
+            active_days_metric(output_df)
+            monthly_rate_metric(output_df)
+            needs_attendtion_metric(output_df)
+
+            # weekly_rate_metric(output_df)
 
 
-            todays_progress_metric(df)
-
-            monthly_rate_metric(df)
 
 
-            needs_attendtion_metric(df)
 
-            productivity_streak_metric(df,1)
 
-            weekly_rate_metric(df)
 
             
 

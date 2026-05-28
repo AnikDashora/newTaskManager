@@ -6,43 +6,152 @@ import os
 import sys
 import random
 import pandas as pd
+import numpy as np
 from streamlit_echarts import st_echarts
 from datetime import datetime, timedelta, date
 
 
 def completion_trend_metric(df):
-    df["date"] = pd.to_datetime(df["date"], format="%d-%m-%Y")
-    df["week"] = df["date"].dt.strftime("%Y-%U")
-    # Group by week and calculate average completion percentage
-    weekly_data = (
-        df.groupby("week")["completion_percentage"]
-        .mean()
-        .reset_index()
-    )
+    if df.empty:
 
-    # Get current week average
-    current_week_avg = weekly_data.iloc[-1]["completion_percentage"]
+        percent_change = 0
 
-    # Get previous week average
-    previous_week_avg = weekly_data.iloc[-2]["completion_percentage"]
+        current_week_avg = 0
 
-    # Find percentage change
-    percent_change = int(round(
-        (
-            (current_week_avg - previous_week_avg)
-            / previous_week_avg
-        ) * 100,
-        2
-    ))
+        previous_week_avg = 0
 
-    last_8_days = (
-        df.sort_values("date")
-        .tail(8)
-    )
+        values = [0] * 8
 
-    values = last_8_days["completion_percentage"].tolist()
+    else:
 
-    # Normalize values to SVG height
+        # =====================================
+        # DATE CONVERSION
+        # =====================================
+
+        df = df.copy()
+
+        df["date"] = pd.to_datetime(
+            df["date"],
+            format="%d-%m-%Y",
+            errors="coerce"
+        )
+
+        # Remove invalid dates
+        df = df.dropna(subset=["date"])
+
+        # =====================================
+        # CHECK AGAIN AFTER CLEANING
+        # =====================================
+
+        if df.empty:
+
+            percent_change = 0
+
+            current_week_avg = 0
+
+            previous_week_avg = 0
+
+            values = [0] * 8
+
+        else:
+
+            # =================================
+            # WEEK CREATION
+            # =================================
+
+            df["week"] = df["date"].dt.strftime(
+                "%Y-%U"
+            )
+
+            # =================================
+            # WEEKLY DATA
+            # =================================
+
+            weekly_data = (
+                df.groupby("week")[
+                    "completion_percentage"
+                ]
+                .mean()
+                .reset_index()
+            )
+
+            # =================================
+            # CURRENT WEEK AVG
+            # =================================
+
+            current_week_avg = weekly_data.iloc[-1][
+                "completion_percentage"
+            ]
+
+            # =================================
+            # PREVIOUS WEEK AVG
+            # =================================
+
+            if len(weekly_data) >= 2:
+
+                previous_week_avg = weekly_data.iloc[-2][
+                    "completion_percentage"
+                ]
+
+            else:
+
+                previous_week_avg = 0
+
+            # =================================
+            # PERCENT CHANGE
+            # =================================
+
+            if previous_week_avg == 0:
+
+                percent_change = int(
+                    round(current_week_avg, 2)
+                )
+
+            else:
+
+                percent_change = int(
+                    round(
+                        (
+                            (
+                                current_week_avg
+                                - previous_week_avg
+                            )
+                            / previous_week_avg
+                        )
+                        * 100,
+                        2
+                    )
+                )
+
+            # =================================
+            # LAST 8 DAYS
+            # =================================
+
+            last_8_days = (
+                df.sort_values("date")
+                .tail(8)
+            )
+
+            values = last_8_days[
+                "completion_percentage"
+            ].fillna(0).tolist()
+
+            # =================================
+            # ENSURE MINIMUM 2 VALUES
+            # =================================
+
+            if len(values) == 1:
+
+                values.append(values[0])
+
+            elif len(values) == 0:
+
+                values = [0] * 8
+
+    # =========================================
+    # SVG GRAPH GENERATION
+    # =========================================
+
     svg_width = 200
     svg_height = 50
 
@@ -51,18 +160,33 @@ def completion_trend_metric(df):
 
     # Avoid division by zero
     if max_val == min_val:
+
         max_val += 1
 
     points = []
 
     for i, value in enumerate(values):
 
-        # X position
-        x = (i / (len(values) - 1)) * svg_width
+        # Avoid division by zero
+        if len(values) == 1:
 
-        # Y position (invert because SVG origin is top-left)
+            x = 0
+
+        else:
+
+            x = (
+                i / (len(values) - 1)
+            ) * svg_width
+
         y = svg_height - (
-            ((value - min_val) / (max_val - min_val))
+            (
+                (
+                    value - min_val
+                )
+                / (
+                    max_val - min_val
+                )
+            )
             * svg_height
         )
 
@@ -70,59 +194,82 @@ def completion_trend_metric(df):
 
     polyline_points = " ".join(points)
 
-    # Area fill polygon
+    # =========================================
+    # AREA FILL
+    # =========================================
+
     polygon_points = (
         f"0,{svg_height} "
         + polyline_points
         + f" {svg_width},{svg_height}"
     )
 
-    # =========================
+    # =========================================
     # UI COLORS
-    # =========================
+    # =========================================
 
     badge_class = (
+
         "badge-positive"
+
         if percent_change >= 0
+
         else "badge-warning"
     )
 
     badge_text = (
+
         "Improving"
+
         if percent_change >= 0
+
         else "Declining"
     )
 
     trend1 = (
+
         "22 7 13.5 15.5 8.5 10.5 2 17"
+
         if percent_change >= 0
+
         else "2 7 8.5 13.5 13.5 8.5 22 17"
     )
 
     trend2 = (
+
         "16 7 22 7 22 13"
+
         if percent_change >= 0
+
         else "16 17 22 17 22 11"
     )
 
     arrow = (
+
         "18 15 12 9 6 15"
+
         if percent_change >= 0
+
         else "6 9 12 15 18 9"
     )
 
     icon_color = (
+
         "green"
+
         if percent_change >= 0
+
         else "red"
     )
 
     graph_color = (
+
         "#55856b"
+
         if percent_change >= 0
+
         else "#c96868"
     )
-
     return st.markdown(
                 f"""
                 <div class="kpi-card">
@@ -168,31 +315,68 @@ def completion_trend_metric(df):
                 unsafe_allow_html = True
             )
 
+
 def average_completion_metric(df):
-    average_completion = round(
-        df["completion_percentage"].mean(),
-        2
-    )
+    
+    if df.empty:
 
-    remaining = 100 - average_completion
+        average_completion = 0
+        remaining = 0
+    else:
 
-    # -----------------------------
+        # =================================
+        # MEAN CALCULATION
+        # =================================
+
+        average_completion = round(
+
+            df["completion_percentage"]
+            .fillna(0)
+            .mean(),
+
+            2
+        )
+
+        if pd.isna(average_completion):
+
+            average_completion = 0
+            remaining = 0
+        else:
+
+            average_completion = max(
+                0,
+                min(100, average_completion)
+            )
+
+            remaining = 100 - average_completion
+
+    # =====================================
     # DONUT CHART LOGIC
-    # -----------------------------
+    # =====================================
 
     radius = 24
 
-    circumference = 2 * math.pi * radius
+    circumference = (
+        2 * math.pi * radius
+    )
 
-    # Completed stroke
+    # =====================================
+    # STROKE CALCULATION
+    # =====================================
+
     completed_stroke = (
         average_completion / 100
     ) * circumference
 
-    # Remaining stroke
-    remaining_stroke = circumference - completed_stroke
+    remaining_stroke = (
+        circumference
+        - completed_stroke
+    )
 
-    # Dynamic dasharray
+    # =====================================
+    # DASH ARRAY
+    # =====================================
+
     dash_array = (
         f"{completed_stroke:.2f} "
         f"{remaining_stroke:.2f}"
@@ -447,10 +631,7 @@ def monthly_rate_metric(df):
                             <line x1="4" y1="20" x2="196" y2="20" stroke="#d8e8f0" stroke-width="0.6" />
                             <polygon points="{polygon_points}" fill="url(#g-blue)" />
                             <polyline points="{polyline_points}" fill="none" stroke="#4d8aaa"
-                                stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
-                            {''.join(circle_text)}
-                            {''.join(month_name)}
-                        </svg>
+                                stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />{''.join(circle_text)}{''.join(month_name)}</svg>
                     </div>
                 </div>
                 """,
@@ -502,9 +683,7 @@ def active_days_metric(df):
                         <div class="kpi-value">{active_days} <span class="unit">Days</span></div>
                     </div>
                     <p class="kpi-helper">Days with completed activity</p>
-                    <div class="activity-bars" aria-label="Activity heatmap: {active_days} active days">
-                        {''.join(bar_html)}
-                    </div>
+                    <div class="activity-bars" aria-label="Activity heatmap: {active_days} active days">{''.join(bar_html)}</div>
                 </div>
                 """,
                 unsafe_allow_html=True
@@ -630,11 +809,7 @@ def weekly_rate_metric(df):
                 </div>
                 <p class="kpi-helper">Tasks completed this week</p>
                 <div class="graph-wrap">
-                    <svg viewBox="0 0 200 64" height="64" aria-label="Weekly completion: Mon 70% to Sun 82%">
-                        <line x1="0" y1="52" x2="200" y2="52" stroke="#ddd" stroke-width="0.8" />
-                        {''.join(bars_html)}
-                        {''.join(labels_html)}
-                    </svg>
+                    <svg viewBox="0 0 200 64" height="64" aria-label="Weekly completion: Mon 70% to Sun 82%"><line x1="0" y1="52" x2="200" y2="52" stroke="#ddd" stroke-width="0.8" />{''.join(bars_html)}{''.join(labels_html)}</svg>
                 </div>
                 </div>
                 """,
@@ -883,9 +1058,7 @@ def needs_attendtion_metric(df):
                             <polygon points="{polygon_points}"
                                 fill="url(#g-red)" />
                             <polyline points="{polyline_points}" fill="none"
-                                stroke="#c96868" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
-                            {''.join(circle_html)}
-                            {''.join(label_html)}
+                                stroke="#c96868" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />{''.join(circle_html)}{''.join(label_html)}
                         </svg>
                     </div>
                 </div>
