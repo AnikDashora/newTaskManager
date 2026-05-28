@@ -6,3 +6,4 @@ env/
 credentials.json
 credential.json
 token.json
+*.html
