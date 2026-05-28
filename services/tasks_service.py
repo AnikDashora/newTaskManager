@@ -1,47 +1,44 @@
-import os
+import streamlit as st
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import Flow
+from googleapiclient.discovery import build
 from datetime import datetime
 import pandas as pd
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
 
 # =====================================================
 # GOOGLE AUTH
 # =====================================================
+
 def fetch_tasks_data():
+
     SCOPES = [
         "https://www.googleapis.com/auth/tasks"
     ]
 
-    creds = None
+    # =====================================================
+    # LOAD TOKEN FROM STREAMLIT SECRETS
+    # =====================================================
 
-    # -----------------------------------------------------
-    # LOAD EXISTING TOKEN
-    # -----------------------------------------------------
+    token_info = dict(st.secrets["token_data"])
 
-    if os.path.exists("token.json"):
+    creds = Credentials(
+        token=token_info["token"],
+        refresh_token=token_info["refresh_token"],
+        token_uri=token_info["token_uri"],
+        client_id=token_info["client_id"],
+        client_secret=token_info["client_secret"],
+        scopes=token_info["scopes"]
+    )
 
-        creds = Credentials.from_authorized_user_file(
-            "token.json",
-            SCOPES
-        )
+    # =====================================================
+    # REFRESH TOKEN IF EXPIRED
+    # =====================================================
 
-    # -----------------------------------------------------
-    # LOGIN IF TOKEN MISSING
-    # -----------------------------------------------------
+    if creds.expired and creds.refresh_token:
 
-    if not creds or not creds.valid:
+        from google.auth.transport.requests import Request
 
-        flow = InstalledAppFlow.from_client_secrets_file(
-            "credentials.json",
-            SCOPES
-        )
-
-        creds = flow.run_local_server(port=0)
-
-        with open("token.json", "w") as token:
-
-            token.write(creds.to_json())
+        creds.refresh(Request())
 
     # =====================================================
     # BUILD GOOGLE TASKS API
@@ -75,12 +72,6 @@ def fetch_tasks_data():
 
         list_name = tasklist["title"]
 
-        # -------------------------------------------------
-        # ONLY ALLOW DATE FORMAT LISTS
-        # Example:
-        # 28-May-2026
-        # -------------------------------------------------
-
         try:
 
             formatted_date = datetime.strptime(
@@ -90,7 +81,6 @@ def fetch_tasks_data():
 
         except:
 
-            # Skip default Google lists
             continue
 
         # =================================================
@@ -125,10 +115,6 @@ def fetch_tasks_data():
                 "needsAction"
             )
 
-            # ---------------------------------------------
-            # STATUS CONVERSION
-            # ---------------------------------------------
-
             if google_status == "completed":
 
                 status = "completed"
@@ -138,10 +124,6 @@ def fetch_tasks_data():
             else:
 
                 status = "pending"
-
-            # ---------------------------------------------
-            # TASK DATA
-            # ---------------------------------------------
 
             task_data.append([
 
@@ -169,7 +151,7 @@ def fetch_tasks_data():
 
         # =================================================
         # OUTCOME DATA
-        # =================================================
+        # =====================================================
 
         outcome_data.append([
 
@@ -246,31 +228,3 @@ def fetch_tasks_data():
     )
 
     return task_df, outcome_df
-
-    # =====================================================
-    # DISPLAY
-    # =====================================================
-
-    # print("\n================ TASK DATA =================\n")
-
-    # print(task_df)
-
-    # print("\n================ OUTCOME DATA =================\n")
-
-    # print(outcome_df)
-
-    # =====================================================
-    # OPTIONAL CSV EXPORT
-    # =====================================================
-
-    # task_df.to_csv(
-    #     "task_data.csv",
-    #     index=False
-    # )
-
-    # outcome_df.to_csv(
-    #     "outcome_data.csv",
-    #     index=False
-    # )
-
-    # print("\nCSV files exported successfully ✅")
