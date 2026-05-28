@@ -4,86 +4,31 @@ import pandas as pd
 
 from datetime import datetime
 
-from google_auth_oauthlib.flow import InstalledAppFlow
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
 # =====================================================
-# GOOGLE AUTH
+# FETCH TASK DATA
 # =====================================================
 
 def fetch_tasks_data():
+
+    # =================================================
+    # GOOGLE SCOPES
+    # =================================================
 
     SCOPES = [
         "https://www.googleapis.com/auth/tasks.readonly"
     ]
 
     # =================================================
-    # GOOGLE CLIENT CONFIG FROM STREAMLIT SECRETS
-    # =================================================
-
-    client_config = {
-
-        "installed": {
-
-            "client_id":
-            st.secrets["google"]["client_id"],
-
-            "project_id":
-            st.secrets["google"]["project_id"],
-
-            "auth_uri":
-            st.secrets["google"]["auth_uri"],
-
-            "token_uri":
-            st.secrets["google"]["token_uri"],
-
-            "auth_provider_x509_cert_url":
-            st.secrets["google"][
-                "auth_provider_x509_cert_url"
-            ],
-
-            "client_secret":
-            st.secrets["google"]["client_secret"],
-
-            "redirect_uris":
-            st.secrets["google"]["redirect_uris"]
-        }
-    }
-
-    creds = None
-
-    # =================================================
     # LOAD TOKEN
     # =================================================
 
-    if os.path.exists("token.json"):
-
-        creds = Credentials.from_authorized_user_file(
-            "token.json",
-            SCOPES
-        )
-
-    # =================================================
-    # LOGIN
-    # =================================================
-
-    if not creds or not creds.valid:
-
-        flow = InstalledAppFlow.from_client_config(
-            client_config,
-            SCOPES
-        )
-
-        # ---------------------------------------------
-        # STREAMLIT CLOUD FRIENDLY
-        # ---------------------------------------------
-
-        creds = flow.run_console()
-
-        with open("token.json", "w") as token:
-
-            token.write(creds.to_json())
+    creds = Credentials.from_authorized_user_file(
+        "token.json",
+        SCOPES
+    )
 
     # =================================================
     # BUILD TASKS API
@@ -117,11 +62,11 @@ def fetch_tasks_data():
 
         list_name = tasklist["title"]
 
-        # ---------------------------------------------
-        # ONLY DATE FORMAT LISTS
+        # -------------------------------------------------
+        # ONLY ALLOW DATE FORMAT LISTS
         # Example:
         # 28-May-2026
-        # ---------------------------------------------
+        # -------------------------------------------------
 
         try:
 
@@ -132,6 +77,7 @@ def fetch_tasks_data():
 
         except:
 
+            # Skip default Google lists
             continue
 
         # =================================================
@@ -149,7 +95,7 @@ def fetch_tasks_data():
         total_task = 0
 
         # =================================================
-        # LOOP TASKS
+        # LOOP THROUGH TASKS
         # =================================================
 
         for task in tasks.get("items", []):
@@ -167,7 +113,7 @@ def fetch_tasks_data():
             )
 
             # ---------------------------------------------
-            # STATUS
+            # STATUS CONVERSION
             # ---------------------------------------------
 
             if google_status == "completed":
@@ -227,7 +173,7 @@ def fetch_tasks_data():
         ])
 
     # =====================================================
-    # CREATE DATAFRAMES
+    # CREATE TASK DATAFRAME
     # =====================================================
 
     task_df = pd.DataFrame(
@@ -241,6 +187,10 @@ def fetch_tasks_data():
             "status"
         ]
     )
+
+    # =====================================================
+    # CREATE OUTCOME DATAFRAME
+    # =====================================================
 
     outcome_df = pd.DataFrame(
 
@@ -256,14 +206,40 @@ def fetch_tasks_data():
     )
 
     # =====================================================
-    # SORT DATE
+    # HANDLE EMPTY DATAFRAMES
+    # =====================================================
+
+    if task_df.empty:
+
+        task_df = pd.DataFrame(
+            columns=[
+                "date",
+                "task",
+                "status"
+            ]
+        )
+
+    if outcome_df.empty:
+
+        outcome_df = pd.DataFrame(
+            columns=[
+                "date",
+                "total_completed_task",
+                "total_task",
+                "completion_percentage"
+            ]
+        )
+
+    # =====================================================
+    # SORT TASK DATAFRAME
     # =====================================================
 
     if not task_df.empty:
 
         task_df["date"] = pd.to_datetime(
             task_df["date"],
-            format="%d-%m-%Y"
+            format="%d-%m-%Y",
+            errors="coerce"
         )
 
         task_df = task_df.sort_values(
@@ -274,11 +250,16 @@ def fetch_tasks_data():
             "date"
         ].dt.strftime("%d-%m-%Y")
 
+    # =====================================================
+    # SORT OUTCOME DATAFRAME
+    # =====================================================
+
     if not outcome_df.empty:
 
         outcome_df["date"] = pd.to_datetime(
             outcome_df["date"],
-            format="%d-%m-%Y"
+            format="%d-%m-%Y",
+            errors="coerce"
         )
 
         outcome_df = outcome_df.sort_values(
@@ -288,5 +269,9 @@ def fetch_tasks_data():
         outcome_df["date"] = outcome_df[
             "date"
         ].dt.strftime("%d-%m-%Y")
+
+    # =====================================================
+    # RETURN DATA
+    # =====================================================
 
     return task_df, outcome_df
