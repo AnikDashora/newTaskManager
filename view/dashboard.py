@@ -975,7 +975,7 @@ def dashboard():
             average_completion_metric(output_df)
             total_progress_metric(output_df)
 
-            productivity_streak_metric(output_df,1)
+            productivity_streak_metric(output_df,75)
             active_days_metric(output_df)
             monthly_rate_metric(output_df)
             needs_attendtion_metric(output_df)
