@@ -817,6 +817,10 @@ def weekly_rate_metric(df):
             )
 
 def productivity_streak_metric(df, expected_percentage_streak):
+    # -----------------------------
+    # DATE FORMATTING
+    # -----------------------------
+
     df["date"] = pd.to_datetime(
         df["date"],
         format="%d-%m-%Y"
@@ -829,30 +833,50 @@ def productivity_streak_metric(df, expected_percentage_streak):
     df.reset_index(drop=True, inplace=True)
 
     # -----------------------------
-    # FIND STREAK START
+    # FIND LONGEST PRODUCTIVE CYCLE
     # -----------------------------
 
-    streak_start_index = 0
+    max_len = 0
+    curr_len = 0
 
-    # Loop backwards
-    for i in range(len(df) - 1, -1, -1):
+    curr_start = 0
+    max_start = 0
+    max_end = -1
+
+    for i in range(len(df)):
 
         completion = df.loc[i, "completion_percentage"]
 
-        # Break streak
-        if completion < expected_percentage_streak:
+        if completion >= expected_percentage_streak:
 
-            streak_start_index = i + 1
-            break
+            if curr_len == 0:
+                curr_start = i
+
+            curr_len += 1
+
+            if curr_len > max_len:
+                max_len = curr_len
+                max_start = curr_start
+                max_end = i
+
+        else:
+
+            curr_len = 0
 
     # -----------------------------
-    # STREAK DATAFRAME
+    # LONGEST PRODUCTIVE CYCLE DF
     # -----------------------------
 
-    streak_df = df.iloc[streak_start_index:]
+    if max_len > 0:
 
-    # Total streak days
-    streak_days = len(streak_df)
+        streak_df = df.iloc[max_start:max_end + 1]
+
+    else:
+
+        streak_df = pd.DataFrame(columns=df.columns)
+
+    # Total days in longest cycle
+    streak_days = max_len
 
     # -----------------------------
     # CREATE BARS
@@ -864,23 +888,23 @@ def productivity_streak_metric(df, expected_percentage_streak):
 
         completion = row["completion_percentage"]
 
-        # Dynamic height
+        # Minimum visible height
         height = max(completion, 8)
 
         # Dynamic opacity
         opacity = max(completion / 100, 0.35)
 
-        # Last bar highlight
+        # Highlight last day of cycle
         if i == streak_df.index[-1]:
 
             bars_html.append(
-                f'<div class="activity-bar" style=" height:{height}%; background:#c4914a;"></div>'
+                f'''<divclass="activity-bar" style="height:{height}%; background:#c4914a;"></div>'''
             )
 
         else:
 
             bars_html.append(
-                f'<div class="activity-bar" style=" height:{height}%; background:rgba(156,116,66,{opacity});"></div>'
+                f'''<div class="activity-bar" style="height:{height}%; background:rgba(156,116,66,{opacity});"></div>'''
             )
 
     # -----------------------------
@@ -888,49 +912,56 @@ def productivity_streak_metric(df, expected_percentage_streak):
     # -----------------------------
 
     if streak_days >= 14:
+
         status_text = "On Fire"
-        badge = 'badge-positive'
+        badge = "badge-positive"
         dot = "dot-green"
 
     elif streak_days >= 7:
+
         status_text = "Strong"
-        badge = 'badge-neutral'
+        badge = "badge-neutral"
         dot = "dot-blue"
 
     elif streak_days >= 3:
+
         status_text = "Good"
-        badge = 'badge-neutral'
+        badge = "badge-neutral"
         dot = "dot-blue"
 
     else:
+
         status_text = "Starting"
-        badge = 'badge-neutral'
+        badge = "badge-neutral"
         dot = "dot-blue"
-    return  st.markdown(
-                f"""
-                <div class="kpi-card">
-                    <div class="kpi-header">
-                        <h2 class="kpi-title">Productivity Streak</h2>
-                        <div class="kpi-icon icon-amber">
-                            <svg viewBox="0 0 24 24">
-                                <path
-                                    d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
-                            </svg>
-                        </div>
-                    </div>
-                    <div class="kpi-value-row">
-                        <div class="kpi-value">{streak_days} <span class="unit">Days</span></div>
-                        <span class="kpi-badge {badge}">
-                            <span class="status-dot {dot}"></span>
-                            {status_text}
-                        </span>
-                    </div>
-                    <p class="kpi-helper">Consecutive productive days</p>
-                    <div class="activity-bars" aria-label="Daily productivity scores over 14 days" style="margin-top:22px;">{''.join(bars_html)}</div>
+
+    # -----------------------------
+    # KPI CARD
+    # -----------------------------
+
+    st.markdown(
+        f"""
+        <div class="kpi-card">
+            <div class="kpi-header">
+                <h2 class="kpi-title">
+                    Longest Productive Cycle
+                </h2>
+                <div class="kpi-icon icon-amber">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+                    </svg>
                 </div>
-                """,
-                unsafe_allow_html=True
-            )
+            </div>
+            <div class="kpi-value-row">
+                <div class="kpi-value">{streak_days}<span class="unit">Days</span></div>
+                <span class="kpi-badge {badge}"><span class="status-dot {dot}"></span>{status_text}</span>
+            </div>
+            <p class="kpi-helper">Best consecutive productive days</p>
+            <div class="activity-bars" aria-label="Longest productive cycle" style="margin-top:22px;">{''.join(bars_html)}</div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 def needs_attendtion_metric(df):
 
@@ -1129,3 +1160,101 @@ def todays_progress_metric(df):
                 """,
                 unsafe_allow_html=True
             )
+
+def makeLineChart(df):
+
+    # =====================================
+    # EDGE CASES
+    # =====================================
+
+    if df.empty:
+
+        return
+
+    chart_df = df.copy()
+
+    chart_df["date"] = pd.to_datetime(
+        chart_df["date"],
+        format="%d-%m-%Y",
+        errors="coerce"
+    )
+
+    chart_df = chart_df.dropna(
+        subset=["date"]
+    )
+
+    if chart_df.empty:
+
+        return
+
+    chart_df = chart_df.sort_values(
+        by="date"
+    )
+
+    x_data = chart_df["date"].dt.strftime(
+        "%d-%m-%Y"
+    ).tolist()
+
+    y_data = chart_df[
+        "completion_percentage"
+    ].fillna(0).tolist()
+
+    # =====================================
+    # ECHARTS OPTIONS
+    # =====================================
+
+    option = {
+
+        "tooltip": {
+            "trigger": "axis"
+        },
+
+        "grid": {
+            "left": "5%",
+            "right": "5%",
+            "bottom": "10%",
+            "top": "10%",
+            "containLabel": True
+        },
+
+        "xAxis": {
+            "type": "category",
+            "data": x_data,
+            "boundaryGap": False
+        },
+
+        "yAxis": {
+            "type": "value",
+            "min": 0,
+            "max": 100
+        },
+
+        "series": [
+            {
+                "name": "Completion %",
+                "type": "line",
+
+                "data": y_data,
+
+                "smooth": True,
+
+                "symbol": "circle",
+
+                "symbolSize": 8,
+
+                "lineStyle": {
+                    "width": 4,
+                    "color": "#55856b"
+                },
+
+                "itemStyle": {
+                    "color": "#55856b"
+                },
+
+                "areaStyle": {
+                    "opacity": 0.15
+                }
+            }
+        ]
+    }
+    return option
