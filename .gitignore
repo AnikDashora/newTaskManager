@@ -7,3 +7,6 @@ env/
 *.html
 
 .streamlit/secrets.toml
+*.java
+*.json
+ta.py

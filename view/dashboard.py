@@ -15,6 +15,9 @@ from components.metrics import active_days_metric, completion_trend_metric,avera
 from session_state.app_state import to_calendar, to_settings, to_tasks
 from services.tasks_service import fetch_tasks_data
 
+def change_theme():
+    st.session_state['theme'] = 1 - st.session_state['theme']
+
 root_variable = [# 0 for light , 1 for dark
     """:root{
         --page-bg: #f7f9f8;
@@ -865,7 +868,7 @@ def dashboard():
     # st.write(df)
     final_style = f"""
     <style>
-    {root_variable[1]}
+    {root_variable[st.session_state['theme']]}
     {remove_header_footer}
     {page_setup}
     {header_style}
@@ -927,7 +930,8 @@ def dashboard():
                     label = "",
                     key = "action-button-1",
                     type = "tertiary",
-                    icon = ":material/dark_mode:"
+                    icon = ":material/dark_mode:",
+                    on_click=change_theme
                 )
                 st.button(
                     label = "",

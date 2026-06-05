@@ -9,6 +9,9 @@ def initialize_app_state():
 
     if 'current_page' not in st.session_state:
         st.session_state['current_page'] = 0
+
+    if 'theme' not in st.session_state:
+        st.session_state['theme'] = 0
     
 
 def to_dashboard():
