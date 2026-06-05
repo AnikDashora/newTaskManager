@@ -8,7 +8,7 @@ import pandas as pd
 # =====================================================
 # GOOGLE AUTH
 # =====================================================
-
+@st.cache_data(ttl=200)
 def fetch_tasks_data():
 
     SCOPES = [
