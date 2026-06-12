@@ -11,220 +11,142 @@ import pandas as pd
 @st.cache_data(ttl=200)
 def fetch_tasks_data():
 
-    SCOPES = [
-        "https://www.googleapis.com/auth/tasks"
+    task_columns = [
+        "date",
+        "task",
+        "status"
     ]
 
-    # =====================================================
-    # LOAD TOKEN FROM STREAMLIT SECRETS
-    # =====================================================
+    outcome_columns = [
+        "date",
+        "total_completed_task",
+        "total_task",
+        "completion_percentage"
+    ]
 
-    token_info = dict(st.secrets["token_data"])
+    try:
+        SCOPES = [
+            "https://www.googleapis.com/auth/tasks"
+        ]
 
-    creds = Credentials(
-        token=token_info["token"],
-        refresh_token=token_info["refresh_token"],
-        token_uri=token_info["token_uri"],
-        client_id=token_info["client_id"],
-        client_secret=token_info["client_secret"],
-        scopes=token_info["scopes"]
-    )
+        token_info = dict(st.secrets["token_data"])
 
-    # =====================================================
-    # REFRESH TOKEN IF EXPIRED
-    # =====================================================
+        creds = Credentials(
+            token=token_info["token"],
+            refresh_token=token_info["refresh_token"],
+            token_uri=token_info["token_uri"],
+            client_id=token_info["client_id"],
+            client_secret=token_info["client_secret"],
+            scopes=token_info["scopes"]
+        )
 
-    if creds.expired and creds.refresh_token:
+        if creds.expired and creds.refresh_token:
+            from google.auth.transport.requests import Request
+            creds.refresh(Request())
 
-        from google.auth.transport.requests import Request
+        tasks_service = build(
+            "tasks",
+            "v1",
+            credentials=creds
+        )
 
-        creds.refresh(Request())
+        task_data = []
+        outcome_data = []
 
-    # =====================================================
-    # BUILD GOOGLE TASKS API
-    # =====================================================
+        tasklists = tasks_service.tasklists().list().execute()
 
-    tasks_service = build(
-        "tasks",
-        "v1",
-        credentials=creds
-    )
+        for tasklist in tasklists.get("items", []):
 
-    # =====================================================
-    # STORAGE
-    # =====================================================
+            list_name = tasklist["title"]
 
-    task_data = []
+            try:
+                formatted_date = datetime.strptime(
+                    list_name,
+                    "%d-%b-%Y"
+                ).strftime("%d-%m-%Y")
+            except:
+                continue
 
-    outcome_data = []
+            tasks = tasks_service.tasks().list(
+                tasklist=tasklist["id"],
+                showCompleted=True,
+                showHidden=True
+            ).execute()
 
-    # =====================================================
-    # FETCH TASK LISTS
-    # =====================================================
+            total_completed_task = 0
+            total_task = 0
 
-    tasklists = tasks_service.tasklists().list().execute()
+            for task in tasks.get("items", []):
 
-    # =====================================================
-    # LOOP THROUGH TASK LISTS
-    # =====================================================
+                total_task += 1
 
-    for tasklist in tasklists.get("items", []):
+                task_title = task.get(
+                    "title",
+                    "Untitled"
+                )
 
-        list_name = tasklist["title"]
+                google_status = task.get(
+                    "status",
+                    "needsAction"
+                )
 
-        try:
+                if google_status == "completed":
+                    status = "completed"
+                    total_completed_task += 1
+                else:
+                    status = "pending"
 
-            formatted_date = datetime.strptime(
-                list_name,
-                "%d-%b-%Y"
-            ).strftime("%d-%m-%Y")
+                task_data.append([
+                    formatted_date,
+                    task_title,
+                    status
+                ])
 
-        except:
-
-            continue
-
-        # =================================================
-        # FETCH TASKS
-        # =================================================
-
-        tasks = tasks_service.tasks().list(
-            tasklist=tasklist["id"],
-            showCompleted=True,
-            showHidden=True
-        ).execute()
-
-        total_completed_task = 0
-
-        total_task = 0
-
-        # =================================================
-        # LOOP THROUGH TASKS
-        # =================================================
-
-        for task in tasks.get("items", []):
-
-            total_task += 1
-
-            task_title = task.get(
-                "title",
-                "Untitled"
+            completion_percentage = (
+                round((total_completed_task / total_task) * 100, 2)
+                if total_task > 0
+                else 0
             )
 
-            google_status = task.get(
-                "status",
-                "needsAction"
-            )
-
-            if google_status == "completed":
-
-                status = "completed"
-
-                total_completed_task += 1
-
-            else:
-
-                status = "pending"
-
-            task_data.append([
-
+            outcome_data.append([
                 formatted_date,
-                task_title,
-                status
+                total_completed_task,
+                total_task,
+                completion_percentage
             ])
 
-        # =================================================
-        # COMPLETION PERCENTAGE
-        # =================================================
+        task_df = pd.DataFrame(
+            task_data,
+            columns=task_columns
+        )
 
-        if total_task > 0:
+        outcome_df = pd.DataFrame(
+            outcome_data,
+            columns=outcome_columns
+        )
 
-            completion_percentage = round(
-
-                (total_completed_task / total_task) * 100,
-
-                2
+        if not task_df.empty:
+            task_df["date"] = pd.to_datetime(
+                task_df["date"],
+                format="%d-%m-%Y"
             )
+            task_df = task_df.sort_values("date")
+            task_df["date"] = task_df["date"].dt.strftime("%d-%m-%Y")
 
-        else:
+        if not outcome_df.empty:
+            outcome_df["date"] = pd.to_datetime(
+                outcome_df["date"],
+                format="%d-%m-%Y"
+            )
+            outcome_df = outcome_df.sort_values("date")
+            outcome_df["date"] = outcome_df["date"].dt.strftime("%d-%m-%Y")
 
-            completion_percentage = 0
+        return task_df, outcome_df
 
-        # =================================================
-        # OUTCOME DATA
-        # =====================================================
+    except Exception as e:
+        st.error(f"Failed to fetch Google Tasks data: {e}")
 
-        outcome_data.append([
+        task_df = pd.DataFrame(columns=task_columns)
+        outcome_df = pd.DataFrame(columns=outcome_columns)
 
-            formatted_date,
-
-            total_completed_task,
-
-            total_task,
-
-            completion_percentage
-        ])
-
-    # =====================================================
-    # CREATE DATAFRAMES
-    # =====================================================
-
-    task_df = pd.DataFrame(
-
-        task_data,
-
-        columns=[
-
-            "date",
-            "task",
-            "status"
-        ]
-    )
-
-    outcome_df = pd.DataFrame(
-
-        outcome_data,
-
-        columns=[
-
-            "date",
-            "total_completed_task",
-            "total_task",
-            "completion_percentage"
-        ]
-    )
-
-    # =====================================================
-    # SORT DATA BY DATE
-    # =====================================================
-
-    task_df["date"] = pd.to_datetime(
-        task_df["date"],
-        format="%d-%m-%Y"
-    )
-
-    outcome_df["date"] = pd.to_datetime(
-        outcome_df["date"],
-        format="%d-%m-%Y"
-    )
-
-    task_df = task_df.sort_values(
-        by="date"
-    )
-
-    outcome_df = outcome_df.sort_values(
-        by="date"
-    )
-
-    # =====================================================
-    # CONVERT DATE BACK TO STRING
-    # =====================================================
-
-    task_df["date"] = task_df["date"].dt.strftime(
-        "%d-%m-%Y"
-    )
-
-    outcome_df["date"] = outcome_df["date"].dt.strftime(
-        "%d-%m-%Y"
-    )
-
-    return task_df, outcome_df
+        return task_df, outcome_df

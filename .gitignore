@@ -10,3 +10,5 @@ env/
 *.java
 *.json
 ta.py
+leet*.py
+temp*.py
