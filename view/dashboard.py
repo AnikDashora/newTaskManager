@@ -11,9 +11,9 @@ sys.path.append(parent_dir)
 from streamlit_echarts import st_echarts
 from datetime import datetime, timedelta, date
 
-from components.metrics import active_days_metric, completion_trend_metric,average_completion_metric, monthly_rate_metric, needs_attendtion_metric, todays_progress_metric,total_progress_metric, weekly_rate_metric,productivity_streak_metric
+from components.metrics import active_days_metric, completion_trend_metric,average_completion_metric, goal_hit_rate_metric, leetcode_acceptance_rate_metric, leetcode_languages_used_metric, leetcode_submission_metric, leetcode_topics_coverage_metric, leetcode_total_solved_metric, monthly_rate_metric, needs_attendtion_metric, output_volume_metric, todays_progress_metric,total_progress_metric, weekly_rate_metric,productivity_streak_metric,leetcode_streak_metric
 from session_state.app_state import to_calendar, to_settings, to_tasks
-from services.tasks_service import fetch_tasks_data
+from services.tasks_service import fetch_leetcode_data, fetch_tasks_data
 
 def change_theme():
     st.session_state['theme'] = 1 - st.session_state['theme']
@@ -64,6 +64,32 @@ root_variable = [# 0 for light , 1 for dark
         --il-fg: #7d7096;
         --ik-bg: #e0eff7;
         --ik-fg: #4d8aaa;
+        --ip-bg: #f0e8f5;
+        --ip-fg: #8c5a9c;
+        --im-bg: #e8f5f0;
+        --im-fg: #3a9070;
+        --io-bg: #fff4e0;
+        --io-fg: #c07c10;
+        --lc-easy: #3a9070;
+        --lc-mid: #c07c10;
+        --lc-hard: #9c5a5a;
+        --lc-easy-bg: #e2f0ec;
+        --lc-mid-bg: #fff0d6;
+        --lc-hard-bg: #f5e8e8;
+        --py: #3a7bd5;
+        --py-bg: #e8f0fb;
+        --java: #e07b39;
+        --java-bg: #fdf0e6;
+        --cpp: #9c5a9c;
+        --cpp-bg: #f4e8f5;
+        --js: #c0a010;
+        --js-bg: #fdf8e0;
+        --go: #3a9070;
+        --go-bg: #e2f0ec;
+        --mysql: #2b6cb0;
+        --mysql-bg: #e6f0fa;
+        --c: #5b7db8;
+        --c-bg: #e9eef8;
         }
     """,
     """:root{
@@ -111,6 +137,8 @@ root_variable = [# 0 for light , 1 for dark
         --il-fg: #b3a4ce;
         --ik-bg: #1f3a4d;
         --ik-fg: #7fb5d4;
+        --c: #5b7db8;
+        --c-bg: #e9eef8;
         }
     """
 ]
@@ -172,7 +200,7 @@ page_setup = """
 
 header_style = """
     .st-emotion-cache-1w723zb{
-        max-width:1160px;
+        max-width:1350px;
     }
     .st-key-header-container {
         max-width: 1160px;
@@ -418,7 +446,7 @@ kpi_style = """
             gap:0rem;
         }
         .st-key-kpi-section {
-            max-width: 1300px;
+            max-width: 1800px;
             margin: 0 auto;
         }
 
@@ -426,7 +454,11 @@ kpi_style = """
             margin-bottom: 32px;
         }
 
-        .section-title {
+        .leetcode-section-header {
+            margin-top: 20px;
+        }
+
+        .section-title, .leetcode-section-title {
             font-size: 28px !important;
             font-weight: 600;
             color: var(--text-main);
@@ -434,16 +466,33 @@ kpi_style = """
             letter-spacing: -0.02em;
         }
 
-        .section-subtitle {
+        .section-subtitle, .leetcode-section-subtitle {
             font-size: 15px;
             color: var(--text-muted);
             font-weight: 400;
         }
-        .st-key-dashboard-grid {
+        .st-key-dashboard-grid, .st-key-leetcode-metrics {
             display: grid;
             gap: 20px;
             grid-template-columns: repeat(4, 1fr);
+            grid-auto-rows: 1fr;   /* ← all rows same height */
+            align-items: stretch;  /* ← cells stretch to fill */
             width: 100%;
+        }
+
+        /* Make Streamlit's wrapper elements stretch too */
+        .st-key-dashboard-grid > .st-emotion-cache-3pwa5w,
+        .st-key-dashboard-grid > .st-emotion-cache-3pwa5w > .stMarkdown,
+        .st-key-dashboard-grid > .st-emotion-cache-3pwa5w > .stMarkdown > .st-emotion-cache-6c7yup,
+        .st-key-dashboard-grid > .st-emotion-cache-3pwa5w > .stMarkdown > .st-emotion-cache-6c7yup > .st-emotion-cache-3o718f {
+            height: 100%;
+        }
+
+        .st-key-leetcode-metrics > .st-emotion-cache-3pwa5w,
+        .st-key-leetcode-metrics > .st-emotion-cache-3pwa5w > .stMarkdown,
+        .st-key-leetcode-metrics > .st-emotion-cache-3pwa5w > .stMarkdown > .st-emotion-cache-6c7yup,
+        .st-key-leetcode-metrics > .st-emotion-cache-3pwa5w > .stMarkdown > .st-emotion-cache-6c7yup > .st-emotion-cache-3o718f {
+            height: 100%;
         }
 
         @media (max-width: 1100px) {
@@ -478,7 +527,8 @@ kpi_style = """
             padding: 22px;
             position: relative;
             transition: all 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
-            height: 14.375rem;
+            height: 100%;          /* ← fill parent instead of fixed rem */
+            min-height: 14.375rem;
         }
 
         /* top-edge shimmer */
@@ -591,6 +641,21 @@ kpi_style = """
         .icon-sky {
             background: var(--ik-bg);
             color: var(--ik-fg);
+        }
+
+        .icon-mint {
+            background: var(--im-bg);
+            color: var(--im-fg);
+        
+        }
+        .icon-orange {
+            background: var(--io-bg);
+            color: var(--io-fg);
+        }
+
+        .icon-purple {
+            background: var(--ip-bg);
+            color: var(--ip-fg);
         }
 
         /* ═══════════════════════════════════════════
@@ -737,6 +802,7 @@ kpi_style = """
     ═══════════════════════════════════════════ */
         .donut-wrap {
             align-items: center;
+            justify-content: space-between;
             display: flex;
             gap: 14px;
             margin-top: 4px;
@@ -795,8 +861,8 @@ kpi_style = """
             align-items: flex-end;
             display: flex;
             gap: 3px;
-            height: 60px;
-            margin-top: 6px;
+            height: 50px;
+            margin-top: 10px;
             width: 100%;
         }
 
@@ -804,6 +870,288 @@ kpi_style = """
             border-radius: 3px 3px 0 0;
             flex: 1;
             min-height: 5px;
+        }
+
+        .mini-stat-row {
+        display: flex;
+        gap: 10px;
+        margin-top: 4px;
+        }
+
+        .mini-stat {
+        background: rgba(255, 255, 255, 0.45);
+        border-radius: 10px;
+        flex: 1;
+        padding: 8px 10px;
+        }
+
+        .mini-stat-label {
+        color: var(--text-label);
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: 0.02em;
+        margin-bottom: 3px;
+        }
+
+        .mini-stat-val {
+        color: var(--text-main);
+        font-size: 15px;
+        font-weight: 600;
+        }
+
+        .diff-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 6px;
+        }
+
+        .diff-pill {
+            flex: 1;
+            border-radius: 12px;
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .diff-pill-label {
+            font-size: 10px;
+            font-weight: 500;
+            letter-spacing: 0.04em;
+        }
+
+        .diff-pill-val {
+            font-size: 20px;
+            font-weight: 600;
+            line-height: 1;
+        }
+
+        .diff-pill-sub {
+            font-size: 10px;
+            opacity: 0.70;
+        }
+
+        .topic-row {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 4px;
+        }
+
+        .topic-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .topic-name {
+            font-size: 11px;
+            color: var(--text-muted);
+            width: 80px;
+            flex-shrink: 0;
+        }
+
+        .topic-bar-track {
+            flex: 1;
+            background: rgba(107, 130, 112, 0.15);
+            border-radius: 4px;
+            height: 7px;
+            overflow: hidden;
+        }
+
+        .topic-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+        }
+
+        .topic-count {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-main);
+            width: 28px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .cal-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 3px;
+            margin-top: 6px;
+        }
+
+        .cal-cell {
+            aspect-ratio: 1;
+            border-radius: 3px;
+        }
+
+        .streak-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .streak-badge {
+            background: rgba(255, 255, 255, 0.55);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 10px;
+            padding: 6px 10px;
+            text-align: center;
+            flex: 1;
+        }
+
+        .streak-badge-val {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .streak-badge-label {
+            font-size: 10px;
+            color: var(--text-label);
+        }
+
+        .heatmap-grid {
+            display: grid;
+            grid-template-columns: repeat(20, 10px);
+            gap: 3px
+        }
+
+        .hm-cell {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px
+        }
+
+        .hm-cell:hover {
+            opacity: .7
+        }
+
+        .l0 {
+            background: #e1f5ee
+        }
+
+        .l1 {
+            background: #9fe1cb
+        }
+
+        .l2 {
+            background: #5dcaa5
+        }
+
+        .l3 {
+            background: #1d9e75
+        }
+
+        .l4 {
+            background: #0f6e56
+        }
+
+        .hm-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 6px
+        }
+
+        .hm-label {
+            font-size: 10px;
+            color: light-dark(rgba(115, 114, 108, 1), rgba(156, 154, 146, 1))
+        }
+
+        .hm-legend {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 10px
+        }
+
+        .hm-legend-label {
+            font-size: 10px;
+            color: light-dark(rgba(115, 114, 108, 1), rgba(156, 154, 146, 1))
+        }
+
+        .hm-legend-track {
+            display: flex;
+            gap: 2px
+        }
+
+        .hm-legend-step {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px
+        }
+        
+        .progress-section {
+            margin-top: 10px;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px
+        }
+
+        .progress-label {
+            font-size: 12px;
+            color: light-dark(rgba(115, 114, 108, 1), rgba(156, 154, 146, 1))
+        }
+
+        .progress-pct {
+            font-size: 12px;
+            font-weight: 500;
+            color: #854F0B
+        }
+
+        
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 99px;
+            background: #EF9F27;
+            width: 49%
+        }
+
+        .milestone-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 12px
+        }
+
+        .milestone {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px
+        }
+
+        .milestone-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%
+        }
+
+        .milestone-dot.done {
+            background: #EF9F27
+        }
+
+        .milestone-dot.next {
+            background: light-dark(rgba(31, 30, 29, 0.3), rgba(222, 220, 209, 0.3))
+        }
+
+        .milestone-num {
+            font-size: 10px;
+            color: light-dark(rgba(115, 114, 108, 1), rgba(156, 154, 146, 1))
+        }
+
+        .milestone-line {
+            flex: 1;
+            height: 1px;
+            background:light-dark(rgba(31, 30, 29, 0.3), rgba(222, 220, 209, 0.3));
+            margin: 0 2px;
+            margin-bottom: 10px
         }
 
         /* ═══════════════════════════════════════════
@@ -861,18 +1209,204 @@ kpi_style = """
         }
 """
 
+token_expiry_warning = """
+    .st-key-token-expiry-warning .st-emotion-cache-3o718f{
+        display:flex;
+        align-items:center;
+        justify-content:center;
+    }
+    .token-banner {
+            width: 100%;
+            max-width: 700px;
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            background: linear-gradient(135deg,
+                    #ef4444,
+                    #dc2626);
+            border: none;
+            border-radius: 18px;
+            padding: 16px 24px;
+
+            box-shadow:
+                0 15px 35px rgba(220, 38, 38, 0.25),
+                0 4px 10px rgba(0, 0, 0, 0.08);
+
+            transition: all .25s ease;
+        }
+
+        .token-banner:hover {
+            transform: translateY(-3px);
+            box-shadow:
+                0 20px 40px rgba(220, 38, 38, 0.35);
+        }
+
+        .token-banner__icon {
+            width: 52px;
+            height: 52px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+
+            color: white;
+            border-radius: 14px;
+
+            flex-shrink: 0;
+        }
+
+        .token-banner__title {
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+            margin-bottom:0px;
+        }
+
+        .token-banner__desc {
+            font-size: 14px;
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        .token-banner__btn {
+            border: none;
+            outline: none;
+
+            background: white;
+            color: #dc2626;
+
+            padding: 10px 18px;
+            border-radius: 12px;
+
+            font-size: 14px;
+            font-weight: 700;
+
+            cursor: pointer;
+            transition: .2s ease;
+
+            box-shadow:
+                0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .token-banner__btn:hover {
+            transform: translateY(-2px);
+            background: #fef2f2;
+        }
+
+        .token-banner__btn:active {
+            transform: translateY(0);
+        }
+
+        .lang-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            border: 1px solid;
+        }
+
+        .lang-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .lang-bar-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .lang-bar-name {
+            font-size: 11px;
+            color: var(--text-muted);
+            width: 18px;
+            font-weight: 600;
+        }
+
+        .lang-bar-track {
+            flex: 1;
+            background: rgba(107, 130, 112, 0.15);
+            border-radius: 4px;
+            height: 8px;
+            overflow: hidden;
+        }
+
+        .lang-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+        }
+
+        .lang-bar-pct {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-main);
+            width: 32px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .trend-sparkline {
+            margin-top: 6px;
+            width: 100%;
+        }
+
+        .trend-sparkline svg {
+            display: block;
+            width: 100%;
+            overflow: visible;
+        }
+
+        .diversity-dots {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .diversity-lang {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .diversity-circle {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .diversity-lname {
+            font-size: 10px;
+            color: var(--text-label);
+        }
+"""
 
 def dashboard():
 
-    task_df,output_df = fetch_tasks_data()
-    # st.write(df)
+    task_df,output_df,success = fetch_tasks_data()
+    leetcode_data = fetch_leetcode_data()
     final_style = f"""
     <style>
-    {root_variable[st.session_state['theme']]}
+    {root_variable[0]}
     {remove_header_footer}
     {page_setup}
     {header_style}
     {kpi_style}
+    {token_expiry_warning}
     </style>
     """
     st.markdown(final_style, unsafe_allow_html=True)
@@ -931,13 +1465,15 @@ def dashboard():
                     key = "action-button-1",
                     type = "tertiary",
                     icon = ":material/dark_mode:",
-                    on_click=change_theme
+                    on_click=change_theme,
+                    disabled=True
                 )
                 st.button(
                     label = "",
                     key = "action-button-2",
                     type = "tertiary",
-                    icon = ":material/notifications:"
+                    icon = ":material/notifications:",
+                    disabled=True
                 )
                 st.markdown(
                     """
@@ -960,7 +1496,30 @@ def dashboard():
                     """
                     ,unsafe_allow_html = True
                 )
-
+    success = True
+    if not success:
+        with st.container(key = "token-expiry-warning"):
+            st.markdown(
+                """
+                <div class="token-banner" role="alert">
+                    <div class="token-banner__icon">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 9V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            <circle cx="12" cy="17" r="1" fill="currentColor" />
+                            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+                        </svg>
+                    </div>
+                    <div class="token-banner__body">
+                        <p class="token-banner__title">Session token expired</p>
+                        <p class="token-banner__desc">Your access token has expired. Please renew it to continue using the service.
+                        </p>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+        return
+        
     with st.container(key = "kpi-section"):
         st.markdown(
             """
@@ -974,18 +1533,26 @@ def dashboard():
 
         with st.container(key = "dashboard-grid"):
 
-            todays_progress_metric(output_df)
-            completion_trend_metric(output_df)
-            average_completion_metric(output_df)
-            total_progress_metric(output_df)
+            todays_progress_metric(output_df,st.session_state['settings']['Todays Progress'])
+            completion_trend_metric(output_df,st.session_state['settings']['Completion Trend'])
+            average_completion_metric(output_df,st.session_state['settings']['Average Completion'])
+            productivity_streak_metric(output_df,50,st.session_state['settings']['Productivity Streak'])
+            total_progress_metric(output_df,st.session_state['settings']['Total Progress'])
+            active_days_metric(output_df,st.session_state['settings']['Active Days'])
+            monthly_rate_metric(output_df,st.session_state['settings']['Monthly Rate'])
+            needs_attendtion_metric(output_df,st.session_state['settings']['Needs Attention'])
+            weekly_rate_metric(output_df,st.session_state['settings']['Weekly Rate'])
+            # goal_hit_rate_metric(st.session_state['settings']['Goal Hit Rate'])
+            # output_volume_metric(st.session_state['settings']['Output Volume'])
 
-            productivity_streak_metric(output_df,50)
-            active_days_metric(output_df)
-            monthly_rate_metric(output_df)
-            needs_attendtion_metric(output_df)
-
-            # weekly_rate_metric(output_df)
-
+        
+        with st.container(key = "leetcode-metrics"):
+            leetcode_total_solved_metric(leetcode_data,st.session_state['settings']['LeetCode Total Solved'])
+            leetcode_acceptance_rate_metric(leetcode_data,st.session_state['settings']['LeetCode Acceptance Rate'])
+            leetcode_submission_metric(leetcode_data,st.session_state['settings']['LeetCode Submission'])
+            leetcode_streak_metric(leetcode_data,st.session_state['settings']['LeetCode Streak'])
+            leetcode_topics_coverage_metric(leetcode_data,st.session_state['settings']['LeetCode Topics Coverage'])
+            leetcode_languages_used_metric(leetcode_data,st.session_state['settings']['LeetCode Languages Used'])
 
 
 

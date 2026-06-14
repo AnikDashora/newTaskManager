@@ -1,14 +1,15 @@
 import streamlit as st
+import requests
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from datetime import datetime
 import pandas as pd
-
+BASE_URL = "https://alfa-leetcode-api.onrender.com"
 # =====================================================
 # GOOGLE AUTH
 # =====================================================
-@st.cache_data(ttl=200)
+# @st.cache_data(ttl=200)
 def fetch_tasks_data():
 
     task_columns = [
@@ -141,12 +142,57 @@ def fetch_tasks_data():
             outcome_df = outcome_df.sort_values("date")
             outcome_df["date"] = outcome_df["date"].dt.strftime("%d-%m-%Y")
 
-        return task_df, outcome_df
+        return task_df, outcome_df,True
 
     except Exception as e:
-        st.error(f"Failed to fetch Google Tasks data: {e}")
-
         task_df = pd.DataFrame(columns=task_columns)
         outcome_df = pd.DataFrame(columns=outcome_columns)
 
-        return task_df, outcome_df
+        return task_df, outcome_df,False
+    
+def safe_get(url):
+
+    try:
+
+        response = requests.get(
+            url,
+            timeout=15
+        )
+
+        print("\n")
+        print(url)
+        print("STATUS:", response.status_code)
+
+        if response.status_code != 200:
+            print(response.text[:500])
+            return {}
+
+        return response.json()
+
+    except Exception as e:
+
+        print("ERROR:", e)
+
+        return {}
+
+
+@st.cache_data(ttl=1800)
+def fetch_leetcode_data(username = "AnikDashora"):
+
+    profile = requests.get(f"{BASE_URL}/{username}").json()
+    solved = requests.get(f"{BASE_URL}/{username}/solved").json()
+    language = requests.get(f"{BASE_URL}/{username}/language").json()
+    skill = requests.get(f"{BASE_URL}/{username}/skill").json()
+    calendar = requests.get(f"{BASE_URL}/{username}/calendar").json()
+    submissions = requests.get(
+        f"{BASE_URL}/{username}/submission?limit=100"
+    ).json()
+
+    return {
+        "profile": profile,
+        "solved": solved,
+        "language": language,
+        "skill": skill,
+        "calendar": calendar,
+        "submissions": submissions
+    }

@@ -7,6 +7,8 @@ import numpy as np
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(parent_dir)
 
+from session_state.app_state import to_calendar, to_settings, to_tasks, to_dashboard,change_kpi_setting
+
 root_variable = [# 0 for light , 1 for dark
     """:root{
         --page-bg: #f7f9f8;
@@ -405,7 +407,7 @@ header_style = """
 def settings():
     final_style = f"""
     <style>
-    {root_variable[1]}
+    {root_variable[0]}
     {remove_header_footer}
     {page_setup}
     {header_style}
@@ -432,7 +434,8 @@ def settings():
                     label = "",
                     key = "nav-button-1",
                     type = "tertiary",
-                    icon = ":material/dashboard:"
+                    icon = ":material/dashboard:",
+                    on_click = to_dashboard
                 )
                 st.button(
                     label = "",
@@ -494,21 +497,26 @@ def settings():
                     ,unsafe_allow_html = True
                 )
     st.title("Settings")
-    st.write("This is the settings page. You can customize your dashboard here.")
-    st.write("More settings options will be added in future updates.")  
     kpi,graph = st.columns(2)
     with kpi:
         st.header("kpi card settings")
 
-        st.toggle("Show completion trend", key="show_completion_trend")
-        st.toggle("Show Total Progress", key="show_total_progress")
-        st.toggle("Show Average Completion", key="show_average_completion")
-        st.toggle("Show Today's Progress", key="show_today_progress")
-        st.toggle("Show active days", key="show_active_days")
-        st.toggle("Show Monthly Rate", key="show_monthly_rate")
-        st.toggle("Show Needs Attention", key="show_needs_attention")
-        st.toggle("Show Productivity Streak", key="show_productivity_streak")
-        st.toggle("Show Weekly Rate", key="show_weekly_rate")
+        st.toggle("Show Today's Progress", key="show_today_progress",value=st.session_state['settings']['Todays Progress'],on_change=change_kpi_setting,args=["Todays Progress"])#need to set the value according to the session state
+        st.toggle("Show completion trend", key="show_completion_trend",value=st.session_state['settings']['Completion Trend'],on_change=change_kpi_setting,args=["Completion Trend"])#need to set the value according to the session state
+        st.toggle("Show Average Completion", key="show_average_completion",value=st.session_state['settings']['Average Completion'],on_change=change_kpi_setting,args=["Average Completion"])#need to set the value according to the session state
+        st.toggle("Show Productivity Streak", key="show_productivity_streak",value=st.session_state['settings']['Productivity Streak'],on_change=change_kpi_setting,args=["Productivity Streak"])#need to set the value according to the session state
+        st.toggle("Show Total Progress", key="show_total_progress",value=st.session_state['settings']['Total Progress'],on_change=change_kpi_setting,args=["Total Progress"])#need to set the value according to the session state
+        st.toggle("Show active days", key="show_active_days",value=st.session_state['settings']['Active Days'],on_change=change_kpi_setting,args=["Active Days"])#need to set the value according to the session state
+        st.toggle("Show Monthly Rate", key="show_monthly_rate",value=st.session_state['settings']['Monthly Rate'],on_change=change_kpi_setting,args=["Monthly Rate"])#need to set the value according to the session state
+        st.toggle("Show Needs Attention", key="show_needs_attention",value=st.session_state['settings']['Needs Attention'],on_change=change_kpi_setting,args=["Needs Attention"])#need to set the value according to the session state
+        st.toggle("Show Weekly Rate", key="show_weekly_rate",value=st.session_state['settings']['Weekly Rate'],on_change=change_kpi_setting,args=["Weekly Rate"])#need to set the value according to the session state
+
+        st.toggle("Show Leetcode Total solved", key="show_leetcode_total_solved",value=st.session_state['settings']['LeetCode Total Solved'],on_change=change_kpi_setting,args=["LeetCode Total Solved"])#need to set the value according to the session state
+        st.toggle("Show Leetcode Acceptance rate", key="show_leetcode_acceptance_rate",value=st.session_state['settings']['LeetCode Acceptance Rate'],on_change=change_kpi_setting,args=["LeetCode Acceptance Rate"])#need to set the value according to the session state
+        st.toggle("Show Leetcode submission count", key="show_leetcode_submission_count",value=st.session_state['settings']['LeetCode Submission'],on_change=change_kpi_setting,args=["LeetCode Submission"])#need to set the value according to the session state
+        st.toggle("Show Leetcode Streak", key="show_leetcode_streak",value=st.session_state['settings']['LeetCode Streak'],on_change=change_kpi_setting,args=["LeetCode Streak"])#need to set the value according to the session state
+        st.toggle("Show Leetcode Topics Coverage", key="show_leetcode_topics_coverage",value=st.session_state['settings']['LeetCode Topics Coverage'],on_change=change_kpi_setting,args=["LeetCode Topics Coverage"])#need to set the value according to the session state
+        st.toggle("Show Leetcode Languages Used", key="show_leetcode_languages_used",value=st.session_state['settings']['LeetCode Languages Used'],on_change=change_kpi_setting,args=["LeetCode Languages Used"])#need to set the value according to the session state
     
     with graph:
         st.header("Graph settings")

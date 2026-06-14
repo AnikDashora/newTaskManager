@@ -8,10 +8,13 @@ import random
 import pandas as pd
 import numpy as np
 from streamlit_echarts import st_echarts
-from datetime import datetime, timedelta, date
+from datetime import datetime, time, timedelta, date, timezone
+import json
+import time
 
-
-def completion_trend_metric(df):
+def completion_trend_metric(df,show_kpi):
+    if not show_kpi:
+        return
     if df.empty:
 
         percent_change = 0
@@ -315,9 +318,10 @@ def completion_trend_metric(df):
                 unsafe_allow_html = True
             )
 
+def average_completion_metric(df,show_kpi):
+    if not show_kpi:
+        return
 
-def average_completion_metric(df):
-    
     if df.empty:
 
         average_completion = 0
@@ -425,7 +429,9 @@ def average_completion_metric(df):
                 unsafe_allow_html=True
             )
 
-def total_progress_metric(df):
+def total_progress_metric(df,show_kpi):
+    if not show_kpi:
+        return
     completed_tasks = df["total_completed_task"].sum()
     total_tasks = df["total_task"].sum()
     progress_percentage = (completed_tasks / total_tasks) * 100 if total_tasks > 0 else 0
@@ -459,7 +465,9 @@ def total_progress_metric(df):
                 unsafe_allow_html=True
             )
 
-def monthly_rate_metric(df):
+def monthly_rate_metric(df,show_kpi):
+    if not show_kpi:
+        return
         # -----------------------------
     # DATE FORMATTING
     # -----------------------------
@@ -638,7 +646,9 @@ def monthly_rate_metric(df):
                 unsafe_allow_html=True
             )
 
-def active_days_metric(df):
+def active_days_metric(df,show_kpi):
+    if not show_kpi:
+        return
 
     df["date"] = pd.to_datetime(
         df["date"],
@@ -689,7 +699,9 @@ def active_days_metric(df):
                 unsafe_allow_html=True
             )
 
-def weekly_rate_metric(df):
+def weekly_rate_metric(df,show_kpi):
+    if not show_kpi:
+        return
 
     df["date"] = pd.to_datetime(
         df["date"],
@@ -816,7 +828,9 @@ def weekly_rate_metric(df):
                 unsafe_allow_html=True
             )
 
-def productivity_streak_metric(df, expected_percentage_streak):
+def productivity_streak_metric(df, expected_percentage_streak,show_kpi):
+    if not show_kpi:
+        return
     df["date"] = pd.to_datetime(
         df["date"],
         format="%d-%m-%Y"
@@ -948,13 +962,15 @@ def productivity_streak_metric(df, expected_percentage_streak):
                         </span>
                     </div>
                     <p class="kpi-helper">Consecutive productive days</p>
-                    <div class="activity-bars" aria-label="Daily productivity scores over 14 days" style="margin-top:22px;">{''.join(bars_html)}</div>
+                    <div class="activity-bars" aria-label="Daily productivity scores over 14 days" >{''.join(bars_html)}</div>
                 </div>
                 """,
                 unsafe_allow_html=True
             )
 
-def needs_attendtion_metric(df):
+def needs_attendtion_metric(df,show_kpi):
+    if not show_kpi:
+        return
 
     df["date"] = pd.to_datetime(
         df["date"],
@@ -1088,7 +1104,9 @@ def needs_attendtion_metric(df):
                     unsafe_allow_html=True
                 )
 
-def todays_progress_metric(df):
+def todays_progress_metric(df,show_kpi):
+    if not show_kpi:
+        return
     df["date"] = pd.to_datetime(
         df["date"],
         format="%d-%m-%Y"
@@ -1151,6 +1169,675 @@ def todays_progress_metric(df):
                 """,
                 unsafe_allow_html=True
             )
+
+def goal_hit_rate_metric(show_kpi):
+    if not show_kpi:
+        return
+    return st.markdown(
+        """
+        <div class="kpi-card">
+            <div class="kpi-header">
+                <h2 class="kpi-title">Goal Hit Rate</h2>
+                <div class="kpi-icon icon-mint">
+                <svg viewBox="0 0 24 24"> <path d="m9 11 3 3L22 4"/> <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/> </svg>
+                </div>
+            </div>
+            <div class="kpi-value-row">
+                <div class="kpi-value">7 <span class="unit">/ 9</span></div>
+                <span class="kpi-badge badge-positive"><span class="status-dot dot-green"></span>On track</span>
+            </div>
+            <p class="kpi-helper">Goals achieved this month</p>
+            <div style="display:flex;flex-direction:column;gap:7px;margin-top:4px;">
+                <div>
+                <div
+                    style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-label);margin-bottom:3px;">
+                    <span>Daily goals</span><span>91%</span></div>
+                <div class="progress-track">
+                    <div class="progress-fill" style="width:91%;background:#3a9070;"></div>
+                </div>
+                </div>
+                <div>
+                <div
+                    style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-label);margin-bottom:3px;">
+                    <span>Weekly goals</span><span>78%</span></div>
+                <div class="progress-track">
+                    <div class="progress-fill" style="width:78%;background:#4a9189;"></div>
+                </div>
+                </div>
+                <div>
+                <div
+                    style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-label);margin-bottom:3px;">
+                    <span>Monthly goals</span><span>56%</span></div>
+                <div class="progress-track">
+                    <div class="progress-fill" style="width:56%;background:var(--ia-fg);"></div>
+                </div>
+                </div>
+            </div>
+            </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+def output_volume_metric(show_kpi):
+    if not show_kpi:
+        return
+    return st.markdown(
+        """
+        <div class="kpi-card">
+            <div class="kpi-header">
+                <h2 class="kpi-title">Output Volume</h2>
+                <div class="kpi-icon icon-sky">
+                <svg viewBox="0 0 24 24">
+                    <rect x="2" y="3" width="20" height="14" rx="2" />
+                    <line x1="8" x2="16" y1="21" y2="21" />
+                    <line x1="12" x2="12" y1="17" y2="21" />
+                </svg>
+                </div>
+            </div>
+            <div class="kpi-value-row">
+                <div class="kpi-value">143 <span class="unit">Tasks</span></div>
+                <span class="kpi-badge badge-positive"><svg viewBox="0 0 24 24">
+                    <polyline points="18 15 12 9 6 15" />
+                </svg>+12</span>
+            </div>
+            <p class="kpi-helper">Delivered this month</p>
+            <div class="graph-wrap">
+                <!-- Planned vs Actual per week W1..W4
+                Planned: 32 35 38 38 | Actual: 28 34 40 41
+                viewBox 0 0 200 52, yBase=46, range 20..45 (25 units), plotH=40
+                y(v)=46-((v-20)/25)*40
+                P:32→20.8 35→12 38→3.2 38→3.2 | A:28→28 34→14.4 40→0 41→-1.6→clip to 1
+                bar w=16, gap between pairs=6, between groups=12
+                group centres: 22, 72, 122, 172
+                planned bar: cx-10 to cx-2; actual: cx+2 to cx+10
+            -->
+                <svg viewBox="0 0 200 52" height="52" aria-label="Output volume planned vs actual W1 to W4">
+                <line x1="0" y1="46" x2="200" y2="46" stroke="#ddd" stroke-width="0.8" />
+                <!-- W1 -->
+                <rect x="12" y="20.8" width="14" height="25.2" rx="2" fill="rgba(77,138,170,0.35)" title="Planned 32" />
+                <rect x="28" y="28" width="14" height="18" rx="2" fill="#4d8aaa" title="Actual 28" />
+                <!-- W2 -->
+                <rect x="62" y="12" width="14" height="34" rx="2" fill="rgba(77,138,170,0.35)" title="Planned 35" />
+                <rect x="78" y="14.4" width="14" height="31.6" rx="2" fill="#4d8aaa" title="Actual 34" />
+                <!-- W3 -->
+                <rect x="112" y="3.2" width="14" height="42.8" rx="2" fill="rgba(77,138,170,0.35)" title="Planned 38" />
+                <rect x="128" y="1" width="14" height="45" rx="2" fill="#55856b" title="Actual 40" />
+                <!-- W4 -->
+                <rect x="162" y="3.2" width="14" height="42.8" rx="2" fill="rgba(77,138,170,0.35)" title="Planned 38" />
+                <rect x="178" y="1" width="14" height="45" rx="2" fill="#55856b" title="Actual 41" />
+                <text x="27" y="60" text-anchor="middle" font-family="Outfit,sans-serif" font-size="8.5"
+                    fill="#8a9691">W1</text>
+                <text x="77" y="60" text-anchor="middle" font-family="Outfit,sans-serif" font-size="8.5"
+                    fill="#8a9691">W2</text>
+                <text x="127" y="60" text-anchor="middle" font-family="Outfit,sans-serif" font-size="8.5"
+                    fill="#8a9691">W3</text>
+                <text x="177" y="60" text-anchor="middle" font-family="Outfit,sans-serif" font-size="8.5"
+                    fill="#8a9691">W4</text>
+                </svg>
+            </div>
+            <div style="display:flex;gap:12px;font-size:10px;color:var(--text-label);margin-top:20px;">
+                <span style="display:flex;align-items:center;gap:4px;">
+                    <span style="width:8px;height:8px;border-radius:2px;background:rgba(77,138,170,0.35);display:inline-block;"></span>
+                    Planned
+                </span>
+                <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:#4d8aaa;display:inline-block;"></span>Actual</span>
+                <span style="display:flex;align-items:center;gap:4px;"><span
+                    style="width:8px;height:8px;border-radius:2px;background:#55856b;display:inline-block;"></span>Exceeded</span><br><br>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+def leetcode_total_solved_metric(leetcode_data,show_kpi):
+    if not show_kpi:
+        return
+    solved = leetcode_data["solved"]
+
+    total_solved = solved["solvedProblem"]
+
+    easy = solved["easySolved"]
+    medium = solved["mediumSolved"]
+    hard = solved["hardSolved"]
+
+    easy_pct = round((easy / total_solved) * 100) if total_solved else 0
+    medium_pct = round((medium / total_solved) * 100) if total_solved else 0
+    hard_pct = round((hard / total_solved) * 100) if total_solved else 0
+
+    TOTAL_LEETCODE_PROBLEMS = 3958
+    solved_pct = round(
+        (total_solved / TOTAL_LEETCODE_PROBLEMS) * 100,
+        1
+    )
+    return st.markdown(
+        f"""
+        <div class="kpi-card">
+        <div class="kpi-header">
+            <h2 class="kpi-title">Total Solved</h2>
+            <div class="kpi-icon icon-green">
+            <svg viewBox="0 0 24 24">
+                <path d="m9 11 3 3L22 4" />
+                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+            </svg>
+            </div>
+        </div>
+        <div class="kpi-value-row">
+            <div class="kpi-value">{total_solved}</div>
+            <span class="kpi-badge badge-positive"><svg viewBox="0 0 24 24">
+                <polyline points="18 15 12 9 6 15" />
+            </svg>+12 this week</span>
+        </div>
+        <p class="kpi-helper">of {TOTAL_LEETCODE_PROBLEMS}+ available problems</p>
+        <div style="margin-top:4px;">
+            <div class="progress-track">
+            <div class="progress-fill" style="width:{solved_pct}%;background:#55856b;"></div>
+            </div>
+            <div class="progress-labels"><span>0</span><span>{solved_pct}% solved</span><span>{TOTAL_LEETCODE_PROBLEMS}</span></div>
+        </div>
+        <!-- difficulty pills -->
+        <div class="diff-row">
+            <div class="diff-pill" style="background:var(--lc-easy-bg);">
+            <span class="diff-pill-label" style="color:var(--lc-easy);">EASY</span>
+            <span class="diff-pill-val" style="color:var(--lc-easy);">{easy}</span>
+            <span class="diff-pill-sub" style="color:var(--lc-easy);">{easy_pct}%</span>
+            </div>
+            <div class="diff-pill" style="background:var(--lc-mid-bg);">
+            <span class="diff-pill-label" style="color:var(--lc-mid);">MEDIUM</span>
+            <span class="diff-pill-val" style="color:var(--lc-mid);">{medium}</span>
+            <span class="diff-pill-sub" style="color:var(--lc-mid);">{medium_pct}%</span>
+            </div>
+            <div class="diff-pill" style="background:var(--lc-hard-bg);">
+            <span class="diff-pill-label" style="color:var(--lc-hard);">HARD</span>
+            <span class="diff-pill-val" style="color:var(--lc-hard);">{hard}</span>
+            <span class="diff-pill-sub" style="color:var(--lc-hard);">{hard_pct}%</span>
+            </div>
+        </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+def leetcode_acceptance_rate_metric(leetcode_data,show_kpi):
+    if not show_kpi:
+        return
+    ac_data = leetcode_data["solved"]["acSubmissionNum"]
+
+    easy_data = next(
+        item for item in ac_data
+        if item["difficulty"] == "Easy"
+    )
+
+    medium_data = next(
+        item for item in ac_data
+        if item["difficulty"] == "Medium"
+    )
+
+    hard_data = next(
+        item for item in ac_data
+        if item["difficulty"] == "Hard"
+    )
+
+    easy_rate = round(
+        easy_data["count"] /
+        easy_data["submissions"] * 100,
+        1
+    ) if easy_data["submissions"] else 0
+
+    medium_rate = round(
+        medium_data["count"] /
+        medium_data["submissions"] * 100,
+        1
+    ) if medium_data["submissions"] else 0
+
+    hard_rate = round(
+        hard_data["count"] /
+        hard_data["submissions"] * 100,
+        1
+    ) if hard_data["submissions"] else 0
+
+    overall_rate = round(
+        (
+            easy_data["count"] +
+            medium_data["count"] +
+            hard_data["count"]
+        ) /
+        (
+            easy_data["submissions"] +
+            medium_data["submissions"] +
+            hard_data["submissions"]
+        ) * 100,
+        1
+    )
+
+    return st.markdown(
+        f"""
+        <div class="kpi-card">
+      <div class="kpi-header">
+        <h2 class="kpi-title">Acceptance Rate</h2>
+        <div class="kpi-icon icon-blue">
+          <svg viewBox="0 0 24 24">
+            <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+            <polyline points="16 7 22 7 22 13" />
+          </svg>
+        </div>
+      </div>
+      <div class="kpi-value-row">
+        <div class="kpi-value">{overall_rate}%</div>
+        <span class="kpi-badge badge-positive"><svg viewBox="0 0 24 24">
+            <polyline points="18 15 12 9 6 15" />
+          </svg>+3%</span>
+      </div>
+      <p class="kpi-helper">First-attempt acceptance rate</p>
+      <div style="display:flex;flex-direction:column;gap:7px;margin-top:4px;">
+        <div>
+          <div
+            style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-label);margin-bottom:3px;">
+            <span>Easy</span><span style="color:var(--lc-easy);">{easy_rate}%</span></div>
+          <div class="progress-track">
+            <div class="progress-fill" style="width:{easy_rate}%;background:var(--lc-easy);"></div>
+          </div>
+        </div>
+        <div>
+          <div
+            style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-label);margin-bottom:3px;">
+            <span>Medium</span><span style="color:var(--lc-mid);">{medium_rate}%</span></div>
+          <div class="progress-track">
+            <div class="progress-fill" style="width:{medium_rate}%;background:var(--lc-mid);"></div>
+          </div>
+        </div>
+        <div>
+          <div
+            style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-label);margin-bottom:3px;">
+            <span>Hard</span><span style="color:var(--lc-hard);">{hard_rate}%</span></div>
+          <div class="progress-track">
+            <div class="progress-fill" style="width:{hard_rate}%;background:var(--lc-hard);"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+def leetcode_topics_coverage_metric(leetcode_data,show_kpi):
+    if not show_kpi:
+        return
+    skill_data = leetcode_data["skill"]
+
+    all_topics = []
+
+    for level in ["fundamental", "intermediate", "advanced"]:
+        if level in skill_data:
+            all_topics.extend(skill_data[level])
+
+    if not all_topics:
+        return
+
+    all_topics = sorted(
+        all_topics,
+        key=lambda x: x["problemsSolved"],
+        reverse=True
+    )
+
+    top_topics = all_topics[:5]
+
+    total_tags = len(all_topics)
+
+    max_solved = max(
+        topic["problemsSolved"]
+        for topic in top_topics
+    )
+
+    colors = [
+        "#55856b",
+        "#4a9189",
+        "#5c7b9c",
+        "#8c5a9c",
+        "#9c7442",
+        "#4d8aaa"
+    ]
+
+    topics_html = ""
+
+    for idx, topic in enumerate(top_topics):
+
+        name = topic["tagName"]
+
+        solved = topic["problemsSolved"]
+
+        width = max(
+            10,
+            int((solved / max_solved) * 100)
+        )
+
+        color = colors[idx % len(colors)]
+
+        topics_html += f"""<div class="topic-item"><span class="topic-name">{name}</span> <div class="topic-bar-track"><div class="topic-bar-fill" style="width:{width}%; background:{color};"></div></div><span class="topic-count">{solved}</span></div>"""
+    return st.markdown(
+        f"""
+        <div class="kpi-card">
+        <div class="kpi-header">
+            <h2 class="kpi-title">Top Topics</h2>
+            <div class="kpi-icon icon-purple">
+            <svg viewBox="0 0 24 24">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <path d="M9 9h1v6H9z" />
+                <path d="M14 9h1v6h-1z" />
+            </svg>
+            </div>
+        </div>
+        <div class="kpi-value-row">
+            <div class="kpi-value">{total_tags} <span class="unit">tags</span></div>
+        </div>
+        <p class="kpi-helper">Problem categories attempted</p>
+        <div class="topic-row">
+            {topics_html}
+        </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+def leetcode_languages_used_metric(leetcode_data,show_kpi):
+    if not show_kpi:
+        return
+    languages = leetcode_data["language"]["languageProblemCount"]
+
+    if not languages:
+        return st.markdown(
+            """
+            <div class="kpi-card">
+                <h2 class="kpi-title">Most Used Language</h2>
+                <p>No language data available</p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    total = sum(lang["problemsSolved"] for lang in languages)
+
+    languages = sorted(
+        languages,
+        key=lambda x: x["problemsSolved"],
+        reverse=True
+    )
+
+    primary = languages[0]
+
+    primary_name = primary["languageName"]
+
+    primary_pct = round(
+        primary["problemsSolved"] / total * 100,
+        1
+    )
+
+    color_map = {
+        "Python": "var(--py)",
+        "Python3": "var(--py)",
+
+        "Java": "var(--java)",
+
+        "C++": "var(--cpp)",
+        "Cpp": "var(--cpp)",
+
+        "JavaScript": "var(--js)",
+        "JS": "var(--js)",
+
+        "Go": "var(--go)",
+
+        "MySQL": "var(--mysql)",
+        "SQL": "var(--mysql)",
+
+        "C": "var(--c)"
+    }
+
+    bars_html = ""
+
+    for lang in languages[:5]:
+
+        name = lang["languageName"]
+
+        pct = round(
+            lang["problemsSolved"] / total * 100,
+            1
+        )
+
+        color = color_map.get(
+            name,
+            "var(--accent)"
+        )
+
+        bars_html += f"""<div class="lang-bar-row"><span class="lang-bar-name" style="color:{color};width:48px;font-size:10px;">{name}</span> <div class="lang-bar-track"><div class="lang-bar-fill" style="width:{pct}%; background:{color};"></div></div> <span class="lang-bar-pct" style="color:{color};">{pct}% </span></div>"""
+
+    primary_color = color_map.get(
+        primary_name,
+        "var(--accent)"
+    )
+    return st.markdown(
+        f"""
+            <div class="kpi-card">
+            <div class="kpi-header">
+                <h2 class="kpi-title">Most Used Language</h2>
+                <div class="kpi-icon icon-blue">
+                <svg viewBox="0 0 24 24">
+                    <polyline points="16 18 22 12 16 6" />
+                    <polyline points="8 6 2 12 8 18" />
+                </svg>
+                </div>
+            </div>
+            <div class="kpi-value-row">
+                <div class="kpi-value" style="color:{primary_color};">{primary_name}</div>
+                <span class="kpi-badge badge-positive"><span class="status-dot dot-blue"></span>Primary</span>
+            </div>
+            <p class="kpi-helper">{primary_pct}% of all submissions</p>
+            <div style="margin-top:4px;display:flex;flex-direction:column;gap:6px;">{bars_html}</div>
+            </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+def leetcode_streak_metric(leetcode_data,show_kpi):
+    if not show_kpi:
+        return
+    calendar_data = json.loads(
+        leetcode_data["calendar"]["submissionCalendar"]
+    )
+
+    # Convert timestamps to dates
+    submissions = {}
+
+    for ts, count in calendar_data.items():
+        date = datetime.fromtimestamp(int(ts)).date()
+        submissions[date] = count
+
+    if not submissions:
+        return st.markdown("<div>No data available</div>",
+                           unsafe_allow_html=True)
+
+    # ---------- Current Streak ----------
+    today = datetime.today().date()
+
+    current_streak = 0
+    day = today
+
+    while submissions.get(day, 0) > 0:
+        current_streak += 1
+        day -= timedelta(days=1)
+
+    # ---------- Best Streak ----------
+    dates = sorted(submissions.keys())
+
+    best_streak = 0
+    streak = 0
+    prev = None
+
+    for d in dates:
+
+        if submissions[d] == 0:
+            streak = 0
+            continue
+
+        if prev and (d - prev).days == 1:
+            streak += 1
+        else:
+            streak = 1
+
+        best_streak = max(best_streak, streak)
+        prev = d
+
+    # ---------- Progress ----------
+    progress_pct = (
+        (current_streak / best_streak) * 100
+        if best_streak else 0
+    )
+
+    progress_pct = min(progress_pct, 100)
+
+    # ---------- Milestones ----------
+    milestones = [7, 14, 30, 60, 100]
+
+    milestone_html = ""
+
+    for i, milestone in enumerate(milestones):
+
+        status = (
+            "done"
+            if current_streak >= milestone
+            else "next"
+        )
+
+        milestone_html += f"""<div class="milestone"> <div class="milestone-dot {status}"></div> <div class="milestone-num">{milestone}</div></div>"""
+
+        if i < len(milestones) - 1:
+            milestone_html += """
+            <div class="milestone-line"></div>
+            """
+    return st.markdown(
+        f"""
+        <div class="kpi-card">
+        <div class="kpi-header">
+            <h2 class="kpi-title">Solving Streak</h2>
+            <div class="kpi-icon icon-amber">
+            <svg viewBox="0 0 24 24">
+                <path
+                d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+            </svg>
+            </div>
+        </div>
+        <div class="kpi-value-row">
+            <div class="kpi-value">{current_streak} <span class="unit">days</span></div>
+            <span class="kpi-badge badge-positive"><span class="status-dot dot-green"></span>Active</span>
+        </div>
+        <p class="kpi-helper">Consecutive days with a solve</p>
+        
+        <div class="progress-section">
+            <div class="progress-header">
+                <span class="progress-label">Progress to best streak</span>
+                <span class="progress-pct">{current_streak} / {best_streak}</span>
+                </div>
+                <div class="progress-track">
+                <div class="progress-fill" style="width:{progress_pct}%;"></div>
+                </div>
+                <div class="milestone-row">{milestone_html}</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True)
+
+def leetcode_submission_metric(leetcode_data,show_kpi):
+    if not show_kpi:
+        return
+    calendar_data = json.loads(
+        leetcode_data["calendar"]["submissionCalendar"]
+    )
+
+    # --- FIX: use UTC midnight timestamp, matching LeetCode's calendar keys ---
+    today_timestamp = int(
+        datetime.now(timezone.utc)
+        .replace(hour=0, minute=0, second=0, microsecond=0)
+        .timestamp()
+    )
+
+    today_count = calendar_data.get(str(today_timestamp), 0)
+
+    activity = sorted(
+        [
+            (int(ts), count)
+            for ts, count in calendar_data.items()
+        ],
+        key=lambda x: x[0]
+    )
+
+    # Last 100 days
+    last_100_days = activity[-100:]
+
+    max_count = max(
+        [count for _, count in last_100_days],
+        default=1
+    )
+    if max_count == 0:
+        max_count = 1  # avoid division issues if all zero
+
+    total_submissions_100d = sum(count for _, count in last_100_days)
+
+    heatmap_html = ""
+
+    for _, count in last_100_days:
+        if count == 0:
+            level = "l0"
+        elif count <= max_count * 0.25:
+            level = "l1"
+        elif count <= max_count * 0.50:
+            level = "l2"
+        elif count <= max_count * 0.75:
+            level = "l3"
+        else:
+            level = "l4"
+
+        heatmap_html += f'<div class="hm-cell {level}" title="{count} submissions"></div>'
+    return st.markdown(
+        f"""
+        <div class="kpi-card">
+            <div class="kpi-header">
+                <h2 class="kpi-title">Daily Submissions</h2>
+                <div class="kpi-icon icon-mint">
+                <svg viewBox="0 0 24 24">
+                    <rect x="3" y="4" width="18" height="18" rx="2" />
+                    <line x1="16" x2="16" y1="2" y2="6" />
+                    <line x1="8" x2="8" y1="2" y2="6" />
+                    <line x1="3" x2="21" y1="10" y2="10" />
+                </svg>
+                </div>
+            </div>
+            <div class="kpi-value-row">
+                <div class="kpi-value">{today_count}</div>
+                <span class="kpi-badge badge-positive"><span class="status-dot dot-green"></span>Active</span>
+            </div>
+            <p class="kpi-helper">Submissions in last 100 days</p>
+            <div class="heatmap-grid">
+                {heatmap_html}
+            </div>
+            <div class="hm-labels">
+                <span class="hm-label">100d ago</span>
+                <span class="hm-label">today</span>
+            </div>
+            <div class="hm-legend">
+                <span class="hm-legend-label">Less</span>
+                <div class="hm-legend-track">
+                <div class="hm-legend-step l0"></div>
+                <div class="hm-legend-step l1"></div>
+                <div class="hm-legend-step l2"></div>
+                <div class="hm-legend-step l3"></div>
+                <div class="hm-legend-step l4"></div>
+                </div>
+                <span class="hm-legend-label">More</span>
+            </div>
+            </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+
 
 def makeLineChart(df):
 
