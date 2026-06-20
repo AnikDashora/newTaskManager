@@ -177,22 +177,35 @@ def safe_get(url):
 
 
 @st.cache_data(ttl=1800)
-def fetch_leetcode_data(username = "AnikDashora"):
+def fetch_leetcode_data(username="AnikDashora"):
+    try:
+        profile = requests.get(f"{BASE_URL}/{username}").json()
+        solved = requests.get(f"{BASE_URL}/{username}/solved").json()
+        language = requests.get(f"{BASE_URL}/{username}/language").json()
+        skill = requests.get(f"{BASE_URL}/{username}/skill").json()
+        calendar = requests.get(f"{BASE_URL}/{username}/calendar").json()
+        submissions = requests.get(
+            f"{BASE_URL}/{username}/submission?limit=100"
+        ).json()
 
-    profile = requests.get(f"{BASE_URL}/{username}").json()
-    solved = requests.get(f"{BASE_URL}/{username}/solved").json()
-    language = requests.get(f"{BASE_URL}/{username}/language").json()
-    skill = requests.get(f"{BASE_URL}/{username}/skill").json()
-    calendar = requests.get(f"{BASE_URL}/{username}/calendar").json()
-    submissions = requests.get(
-        f"{BASE_URL}/{username}/submission?limit=100"
-    ).json()
+        return {
+            "profile": profile,
+            "solved": solved,
+            "language": language,
+            "skill": skill,
+            "calendar": calendar,
+            "submissions": submissions,
+            "error": None
+        }
 
-    return {
-        "profile": profile,
-        "solved": solved,
-        "language": language,
-        "skill": skill,
-        "calendar": calendar,
-        "submissions": submissions
-    }
+    except requests.exceptions.RequestException as e:
+        return {
+            "error": f"Request Error: {str(e)}"
+        }
+
+    except Exception as e:
+        return {
+            "error": f"Unexpected Error: {str(e)}"
+        }
+
+fetch_leetcode_data()

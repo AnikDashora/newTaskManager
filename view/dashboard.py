@@ -1496,28 +1496,47 @@ def dashboard():
                     """
                     ,unsafe_allow_html = True
                 )
-    success = True
-    if not success:
+    if not success or leetcode_data["error"]:
         with st.container(key = "token-expiry-warning"):
-            st.markdown(
-                """
-                <div class="token-banner" role="alert">
-                    <div class="token-banner__icon">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                            <path d="M12 9V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-                            <circle cx="12" cy="17" r="1" fill="currentColor" />
-                            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
-                        </svg>
+            if(leetcode_data["error"]):
+                st.markdown(
+                    """
+                    <div class="token-banner" role="alert">
+                        <div class="token-banner__icon">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                                <path d="M12 9V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                                <circle cx="12" cy="17" r="1" fill="currentColor" />
+                                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+                            </svg>
+                        </div>
+                        <div class="token-banner__body">
+                            <p class="token-banner__title">Leetcode Session token expired</p>
+                            <p class="token-banner__desc">Your access token has expired. Please renew it to continue using the service.
+                            </p>
+                        </div>
                     </div>
-                    <div class="token-banner__body">
-                        <p class="token-banner__title">Session token expired</p>
-                        <p class="token-banner__desc">Your access token has expired. Please renew it to continue using the service.
-                        </p>
+                    """,unsafe_allow_html=True
+                )
+            else:
+                st.markdown(
+                    """
+                    <div class="token-banner" role="alert">
+                        <div class="token-banner__icon">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                                <path d="M12 9V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                                <circle cx="12" cy="17" r="1" fill="currentColor" />
+                                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+                            </svg>
+                        </div>
+                        <div class="token-banner__body">
+                            <p class="token-banner__title">Leetcode Session token expired</p>
+                            <p class="token-banner__desc">Your access token has expired. Please renew it to continue using the service.
+                            </p>
+                        </div>
                     </div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+                    """,
+                    unsafe_allow_html=True
+                )
         return
         
     with st.container(key = "kpi-section"):
@@ -1532,7 +1551,6 @@ def dashboard():
         )
 
         with st.container(key = "dashboard-grid"):
-
             todays_progress_metric(output_df,st.session_state['settings']['Todays Progress'])
             completion_trend_metric(output_df,st.session_state['settings']['Completion Trend'])
             average_completion_metric(output_df,st.session_state['settings']['Average Completion'])
