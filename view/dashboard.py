@@ -802,7 +802,6 @@ kpi_style = """
     ═══════════════════════════════════════════ */
         .donut-wrap {
             align-items: center;
-            justify-content: space-between;
             display: flex;
             gap: 14px;
             margin-top: 4px;
